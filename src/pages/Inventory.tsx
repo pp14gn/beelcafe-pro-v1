@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import AddInventoryDialog from "@/components/AddInventoryDialog";
 import { 
   Table,
   TableBody,
@@ -36,6 +37,7 @@ interface InventoryItem {
 const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const inventoryData: InventoryItem[] = [
     {
@@ -138,7 +140,10 @@ const Inventory = () => {
           <h1 className="text-2xl font-bold text-foreground">Inventory Management</h1>
           <p className="text-muted-foreground">Monitor stock levels and manage inventory</p>
         </div>
-        <Button className="gap-2 bg-gradient-coffee hover:opacity-90">
+        <Button 
+          className="gap-2 bg-gradient-coffee hover:opacity-90"
+          onClick={() => setAddDialogOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           Add Item
         </Button>
@@ -272,6 +277,16 @@ const Inventory = () => {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Add Inventory Dialog */}
+      <AddInventoryDialog
+        isOpen={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        onSuccess={() => {
+          // You could reload inventory data here
+          console.log('Inventory item added successfully');
+        }}
+      />
     </div>
   );
 };

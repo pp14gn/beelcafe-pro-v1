@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ModifierDialog from "@/components/ModifierDialog";
 import CashOutDialog from "@/components/CashOutDialog";
+import StartShiftDialog from "@/components/StartShiftDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +19,9 @@ import {
   CreditCard,
   DollarSign,
   Settings,
-  Calculator
+  Calculator,
+  Clock,
+  StopCircle
 } from "lucide-react";
 
 interface MenuItem {
@@ -39,8 +42,11 @@ const POS = () => {
   const [selectedCategory, setSelectedCategory] = useState("coffee");
   const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false);
   const [cashOutDialogOpen, setCashOutDialogOpen] = useState(false);
+  const [startShiftDialogOpen, setStartShiftDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<OrderItem | null>(null);
   const [currentCashTotal, setCurrentCashTotal] = useState(0);
+  const [currentShift, setCurrentShift] = useState<any>(null);
+  const [shiftSummary, setShiftSummary] = useState({ sales: 0, cashOuts: 0 });
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
@@ -111,9 +117,54 @@ const POS = () => {
   const filteredItems = menuItems.filter(item => item.category === selectedCategory);
 
   useEffect(() => {
-    // Load current cash total from today's cash transactions
+    // Load current shift and cash total
+    loadCurrentShift();
     loadCurrentCashTotal();
   }, [user]);
+
+  const loadCurrentShift = async () => {
+    if (!user) return;
+
+    try {
+      const { data: shift, error } = await supabase
+        .from('shifts')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading current shift:', error);
+        return;
+      }
+
+      setCurrentShift(shift);
+      
+      if (shift) {
+        // Load shift summary
+        const today = new Date().toISOString().split('T')[0];
+        
+        const { data: sales, error: salesError } = await supabase
+          .from('sales')
+          .select('total_amount')
+          .eq('shift_id', shift.id);
+
+        const { data: cashOuts, error: cashOutsError } = await supabase
+          .from('cash_outs')
+          .select('amount')
+          .eq('shift_id', shift.id);
+
+        if (!salesError && !cashOutsError) {
+          const totalSales = sales?.reduce((sum, sale) => sum + sale.total_amount, 0) || 0;
+          const totalCashOuts = cashOuts?.reduce((sum, cashOut) => sum + cashOut.amount, 0) || 0;
+          
+          setShiftSummary({ sales: totalSales, cashOuts: totalCashOuts });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading current shift:', error);
+    }
+  };
 
   const loadCurrentCashTotal = async () => {
     if (!user) return;
@@ -169,6 +220,7 @@ const POS = () => {
         .insert([
           {
             user_id: user.id,
+            shift_id: currentShift?.id || null,
             items: cart,
             total_amount: total,
             payment_method: paymentMethod,
@@ -195,12 +247,60 @@ const POS = () => {
       if (paymentMethod === 'cash') {
         setCurrentCashTotal(prev => prev + total);
       }
+      
+      // Reload shift summary
+      if (currentShift) {
+        loadCurrentShift();
+      }
     } catch (error) {
       console.error('Unexpected error processing sale:', error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "An unexpected error occurred.",
+      });
+    }
+  };
+
+  const handleStartShift = (shiftId: string) => {
+    loadCurrentShift();
+    toast({
+      title: "Shift Started",
+      description: "Your shift has been started successfully.",
+    });
+  };
+
+  const handleEndShift = async () => {
+    if (!currentShift || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from('shifts')
+        .update({
+          end_time: new Date().toISOString(),
+          ending_cash: currentCashTotal,
+          sales_total: shiftSummary.sales,
+          cash_outs_total: shiftSummary.cashOuts,
+          status: 'completed',
+        })
+        .eq('id', currentShift.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Shift Ended",
+        description: `Shift ended with $${currentCashTotal.toFixed(2)} in cash.`,
+      });
+
+      setCurrentShift(null);
+      setShiftSummary({ sales: 0, cashOuts: 0 });
+      setCurrentCashTotal(0);
+    } catch (error) {
+      console.error('Error ending shift:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to end shift. Please try again.",
       });
     }
   };
@@ -228,7 +328,9 @@ const POS = () => {
               </Button>
             </div>
           </div>
-          <p className="text-muted-foreground">Select items to add to the current order</p>
+          <p className="text-muted-foreground">
+            {currentShift ? 'Select items to add to the current order' : 'Start a shift to begin taking orders'}
+          </p>
         </div>
 
         {/* Category Tabs */}
@@ -251,8 +353,12 @@ const POS = () => {
           {filteredItems.map((item) => (
             <Card
               key={item.id}
-              className="p-4 cursor-pointer hover:shadow-coffee transition-all duration-200 border-2 hover:border-coffee-gold/30"
-              onClick={() => addToCart(item)}
+              className={`p-4 transition-all duration-200 border-2 ${
+                currentShift 
+                  ? "cursor-pointer hover:shadow-coffee hover:border-coffee-gold/30" 
+                  : "opacity-50 cursor-not-allowed"
+              }`}
+              onClick={() => currentShift && addToCart(item)}
             >
               <div className="text-center">
                 <div className="h-20 w-20 mx-auto mb-3 rounded-full bg-gradient-cream flex items-center justify-center">
@@ -368,7 +474,7 @@ const POS = () => {
                 variant="outline" 
                 className="gap-2"
                 onClick={() => processSale('cash')}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || !currentShift}
               >
                 <DollarSign className="h-4 w-4" />
                 Cash
@@ -376,7 +482,7 @@ const POS = () => {
               <Button 
                 className="gap-2 bg-gradient-coffee hover:opacity-90"
                 onClick={() => processSale('card')}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || !currentShift}
               >
                 <CreditCard className="h-4 w-4" />
                 Card
@@ -395,6 +501,13 @@ const POS = () => {
           onConfirm={updateCartItemModifiers}
         />
       )}
+
+      {/* Start Shift Dialog */}
+      <StartShiftDialog
+        isOpen={startShiftDialogOpen}
+        onClose={() => setStartShiftDialogOpen(false)}
+        onShiftStarted={handleStartShift}
+      />
 
       {/* Cash Out Dialog */}
       <CashOutDialog

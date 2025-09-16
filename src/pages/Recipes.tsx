@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import AddRecipeDialog from "@/components/AddRecipeDialog";
 import { 
   ChefHat, 
   Plus, 
@@ -53,6 +54,7 @@ const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const recipes: Recipe[] = [
     {
@@ -161,7 +163,10 @@ const Recipes = () => {
           <h1 className="text-2xl font-bold text-foreground">Recipe Manager</h1>
           <p className="text-muted-foreground">Manage recipes, ingredients, and modifiers</p>
         </div>
-        <Button className="gap-2 bg-gradient-coffee hover:opacity-90">
+        <Button 
+          className="gap-2 bg-gradient-coffee hover:opacity-90"
+          onClick={() => setAddDialogOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           Add Recipe
         </Button>
@@ -399,6 +404,16 @@ const Recipes = () => {
           </Card>
         ))}
       </div>
+
+      {/* Add Recipe Dialog */}
+      <AddRecipeDialog
+        isOpen={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        onSuccess={() => {
+          // You could reload recipes data here
+          console.log('Recipe added successfully');
+        }}
+      />
     </div>
   );
 };

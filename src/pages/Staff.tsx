@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import AddStaffDialog from "@/components/AddStaffDialog";
 import { 
   Table,
   TableBody,
@@ -39,6 +40,7 @@ interface StaffMember {
 const Staff = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const staffData: StaffMember[] = [
     {
@@ -141,7 +143,10 @@ const Staff = () => {
           <h1 className="text-2xl font-bold text-foreground">Staff Management</h1>
           <p className="text-muted-foreground">Manage staff accounts, permissions, and performance</p>
         </div>
-        <Button className="gap-2 bg-gradient-coffee hover:opacity-90">
+        <Button 
+          className="gap-2 bg-gradient-coffee hover:opacity-90"
+          onClick={() => setAddDialogOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           Add Staff Member
         </Button>
@@ -278,6 +283,16 @@ const Staff = () => {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Add Staff Dialog */}
+      <AddStaffDialog
+        isOpen={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        onSuccess={() => {
+          // You could reload staff data here
+          console.log('Staff member added successfully');
+        }}
+      />
     </div>
   );
 };
