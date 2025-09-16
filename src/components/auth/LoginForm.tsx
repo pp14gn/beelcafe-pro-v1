@@ -52,42 +52,22 @@ const LoginForm = () => {
     try {
       let email = emailOrUsername;
 
-      // If input looks like a username (no @), try to find the user by username
+      // Simple username to email mapping for known users
       if (!emailOrUsername.includes('@')) {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('username', emailOrUsername)
-          .single();
-
-        if (userError || !userData) {
+        const usernameEmailMap: { [key: string]: string } = {
+          'admin': 'admin@coffeepos.com',
+        };
+        
+        email = usernameEmailMap[emailOrUsername.toLowerCase()];
+        
+        if (!email) {
           toast({
             variant: 'destructive',
             title: 'Login Failed',
-            description: 'Username not found',
+            description: 'Username not recognized. Please use email or contact administrator.',
           });
           setLoading(false);
           return;
-        }
-
-        // Get the email from auth.users using the user ID
-        const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userData.id);
-        
-        if (authError || !authUser.user?.email) {
-          // Fallback: try common admin email patterns
-          if (emailOrUsername === 'admin') {
-            email = 'admin@coffeepos.com';
-          } else {
-            toast({
-              variant: 'destructive',
-              title: 'Login Failed',
-              description: 'Could not resolve username to email',
-            });
-            setLoading(false);
-            return;
-          }
-        } else {
-          email = authUser.user.email;
         }
       }
 
