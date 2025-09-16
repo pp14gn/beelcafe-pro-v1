@@ -133,15 +133,15 @@ const Inventory = () => {
   const lowStockItems = inventoryData.filter(item => getStockStatus(item.currentStock, item.minStock) === "low");
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Inventory Management</h1>
-          <p className="text-muted-foreground">Monitor stock levels and manage inventory</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Inventory Management</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Monitor stock levels and manage inventory</p>
         </div>
         <Button 
-          className="gap-2 bg-gradient-coffee hover:opacity-90"
+          className="gap-2 bg-gradient-coffee hover:opacity-90 w-full sm:w-auto"
           onClick={() => setAddDialogOpen(true)}
         >
           <Plus className="h-4 w-4" />
@@ -150,7 +150,7 @@ const Inventory = () => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
@@ -190,7 +190,7 @@ const Inventory = () => {
 
       {/* Filters and Search */}
       <Card className="p-4">
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -201,19 +201,20 @@ const Inventory = () => {
             />
           </div>
           
-          <div className="flex gap-2">
-            <Button variant="outline" className="gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" className="gap-2 w-full sm:w-auto">
               <Filter className="h-4 w-4" />
               Filter
             </Button>
             
-            <div className="flex gap-1">
+            <div className="grid grid-cols-2 sm:flex gap-1">
               {categories.map((category) => (
                 <Button
                   key={category.id}
                   variant={selectedCategory === category.id ? "default" : "outline"}
                   size="sm"
                   onClick={() => setSelectedCategory(category.id)}
+                  className="text-xs sm:text-sm"
                 >
                   {category.name}
                 </Button>
@@ -229,53 +230,109 @@ const Inventory = () => {
           <h3 className="font-semibold text-foreground">Inventory Items</h3>
         </div>
         
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Item Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Current Stock</TableHead>
-              <TableHead>Min Stock</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Cost/Unit</TableHead>
-              <TableHead>Supplier</TableHead>
-              <TableHead>Last Restocked</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        {/* Mobile view - cards */}
+        <div className="block sm:hidden">
+          <div className="p-4 space-y-4">
             {filteredItems.map((item) => {
               const status = getStockStatus(item.currentStock, item.minStock);
               
               return (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell className="capitalize">{item.category}</TableCell>
-                  <TableCell>
-                    <span className={status === "critical" ? "text-destructive font-semibold" : ""}>
-                      {item.currentStock} {item.unit}
-                    </span>
-                  </TableCell>
-                  <TableCell>{item.minStock} {item.unit}</TableCell>
-                  <TableCell>{getStatusBadge(status)}</TableCell>
-                  <TableCell>${item.costPerUnit.toFixed(2)}</TableCell>
-                  <TableCell>{item.supplier}</TableCell>
-                  <TableCell>{item.lastRestocked}</TableCell>
-                  <TableCell>
+                <Card key={item.id} className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium">{item.name}</h4>
+                        <p className="text-sm text-muted-foreground capitalize">{item.category}</p>
+                      </div>
+                      {getStatusBadge(status)}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Current Stock:</span>
+                        <p className={status === "critical" ? "text-destructive font-semibold" : ""}>
+                          {item.currentStock} {item.unit}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Min Stock:</span>
+                        <p>{item.minStock} {item.unit}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Cost/Unit:</span>
+                        <p>${item.costPerUnit.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Supplier:</span>
+                        <p className="truncate">{item.supplier}</p>
+                      </div>
+                    </div>
+                    
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" className="flex-1">
                         Edit
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" className="flex-1">
                         Restock
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </div>
+                </Card>
               );
             })}
-          </TableBody>
-        </Table>
+          </div>
+        </div>
+
+        {/* Desktop view - table */}
+        <div className="hidden sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Current Stock</TableHead>
+                <TableHead>Min Stock</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Cost/Unit</TableHead>
+                <TableHead>Supplier</TableHead>
+                <TableHead>Last Restocked</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredItems.map((item) => {
+                const status = getStockStatus(item.currentStock, item.minStock);
+                
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="capitalize">{item.category}</TableCell>
+                    <TableCell>
+                      <span className={status === "critical" ? "text-destructive font-semibold" : ""}>
+                        {item.currentStock} {item.unit}
+                      </span>
+                    </TableCell>
+                    <TableCell>{item.minStock} {item.unit}</TableCell>
+                    <TableCell>{getStatusBadge(status)}</TableCell>
+                    <TableCell>${item.costPerUnit.toFixed(2)}</TableCell>
+                    <TableCell>{item.supplier}</TableCell>
+                    <TableCell>{item.lastRestocked}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          Restock
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       {/* Add Inventory Dialog */}

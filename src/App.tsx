@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginForm from "./components/auth/LoginForm";
-import Sidebar from "./components/Layout/Sidebar";
+import ResponsiveLayout from "./components/Layout/ResponsiveLayout";
 import POS from "./pages/POS";
 import Inventory from "./pages/Inventory";
 import Recipes from "./pages/Recipes";
@@ -33,62 +33,44 @@ const App = () => (
             } />
             <Route path="/pos" element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-background">
-                  <Sidebar />
-                  <main className="flex-1 overflow-auto">
-                    <POS />
-                  </main>
-                </div>
+                <ResponsiveLayout>
+                  <POS />
+                </ResponsiveLayout>
               </ProtectedRoute>
             } />
             <Route path="/inventory" element={
               <ProtectedRoute requiredRole="manager">
-                <div className="flex h-screen bg-background">
-                  <Sidebar />
-                  <main className="flex-1 overflow-auto">
-                    <Inventory />
-                  </main>
-                </div>
+                <ResponsiveLayout>
+                  <Inventory />
+                </ResponsiveLayout>
               </ProtectedRoute>
             } />
             <Route path="/recipes" element={
               <ProtectedRoute requiredRole="manager">
-                <div className="flex h-screen bg-background">
-                  <Sidebar />
-                  <main className="flex-1 overflow-auto">
-                    <Recipes />
-                  </main>
-                </div>
+                <ResponsiveLayout>
+                  <Recipes />
+                </ResponsiveLayout>
               </ProtectedRoute>
             } />
             <Route path="/staff" element={
               <ProtectedRoute requiredRole="manager">
-                <div className="flex h-screen bg-background">
-                  <Sidebar />
-                  <main className="flex-1 overflow-auto">
-                    <Staff />
-                  </main>
-                </div>
+                <ResponsiveLayout>
+                  <Staff />
+                </ResponsiveLayout>
               </ProtectedRoute>
             } />
             <Route path="/analytics" element={
               <ProtectedRoute requiredRole="manager">
-                <div className="flex h-screen bg-background">
-                  <Sidebar />
-                  <main className="flex-1 overflow-auto">
-                    <Analytics />
-                  </main>
-                </div>
+                <ResponsiveLayout>
+                  <Analytics />
+                </ResponsiveLayout>
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
               <ProtectedRoute>
-                <div className="flex h-screen bg-background">
-                  <Sidebar />
-                  <main className="flex-1 overflow-auto">
-                    <Settings />
-                  </main>
-                </div>
+                <ResponsiveLayout>
+                  <Settings />
+                </ResponsiveLayout>
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />

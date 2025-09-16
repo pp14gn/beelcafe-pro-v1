@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useIsMobile } from "@/hooks/use-mobile";
 import ModifierDialog from "@/components/ModifierDialog";
 import CashOutDialog from "@/components/CashOutDialog";
 import StartShiftDialog from "@/components/StartShiftDialog";
@@ -41,6 +42,7 @@ interface OrderItem extends MenuItem {
 }
 
 const POS = () => {
+  const isMobile = useIsMobile();
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("coffee");
   const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false);
@@ -50,87 +52,43 @@ const POS = () => {
   const [currentCashTotal, setCurrentCashTotal] = useState(0);
   const [currentShift, setCurrentShift] = useState<any>(null);
   const [shiftSummary, setShiftSummary] = useState({ sales: 0, cashOuts: 0 });
-  const [tablesExist, setTablesExist] = useState<boolean>(true);
-  const [setupInProgress, setSetupInProgress] = useState(false);
-  const { user, userProfile } = useAuth();
+
+  const { user } = useAuth();
   const { toast } = useToast();
 
+  // Sample menu items
   const menuItems: MenuItem[] = [
-    { id: "1", name: "Espresso", price: 2.50, category: "coffee" },
-    { id: "2", name: "Americano", price: 3.00, category: "coffee" },
-    { id: "3", name: "Latte", price: 4.50, category: "coffee", modifiers: ["Extra Shot", "Oat Milk", "Vanilla Syrup"] },
-    { id: "4", name: "Cappuccino", price: 4.00, category: "coffee", modifiers: ["Extra Shot", "Decaf", "Extra Foam"] },
-    { id: "5", name: "Croissant", price: 3.50, category: "pastries" },
-    { id: "6", name: "Blueberry Muffin", price: 2.75, category: "pastries" },
-    { id: "7", name: "Avocado Toast", price: 8.50, category: "food" },
-    { id: "8", name: "Breakfast Sandwich", price: 7.25, category: "food" },
+    // Coffee items
+    { id: '1', name: 'Espresso', price: 2.50, category: 'coffee', modifiers: ['Extra Shot', 'Decaf'] },
+    { id: '2', name: 'Americano', price: 3.00, category: 'coffee', modifiers: ['Extra Shot', 'Decaf'] },
+    { id: '3', name: 'Latte', price: 4.50, category: 'coffee', modifiers: ['Extra Shot', 'Oat Milk', 'Almond Milk', 'Vanilla Syrup'] },
+    { id: '4', name: 'Cappuccino', price: 4.00, category: 'coffee', modifiers: ['Extra Shot', 'Oat Milk', 'Almond Milk'] },
+    { id: '5', name: 'Mocha', price: 5.00, category: 'coffee', modifiers: ['Extra Shot', 'Oat Milk', 'Whipped Cream'] },
+    
+    // Food items
+    { id: '6', name: 'Croissant', price: 3.50, category: 'food' },
+    { id: '7', name: 'Muffin', price: 2.75, category: 'food' },
+    { id: '8', name: 'Bagel', price: 2.50, category: 'food', modifiers: ['Cream Cheese', 'Butter'] },
+    { id: '9', name: 'Sandwich', price: 8.50, category: 'food' },
+    
+    // Beverages
+    { id: '10', name: 'Hot Tea', price: 2.25, category: 'beverages' },
+    { id: '11', name: 'Iced Tea', price: 2.50, category: 'beverages' },
+    { id: '12', name: 'Smoothie', price: 5.75, category: 'beverages' },
+    { id: '13', name: 'Fresh Juice', price: 4.25, category: 'beverages' },
   ];
 
   const categories = [
-    { id: "coffee", name: "Coffee", icon: Coffee },
-    { id: "pastries", name: "Pastries", icon: Coffee },
-    { id: "food", name: "Food", icon: Coffee },
+    { id: 'coffee', name: 'Coffee', icon: Coffee },
+    { id: 'food', name: 'Food', icon: Coffee },
+    { id: 'beverages', name: 'Beverages', icon: Coffee },
   ];
-
-  const addToCart = (item: MenuItem) => {
-    const existingItem = cart.find(cartItem => cartItem.id === item.id);
-    if (existingItem) {
-      setCart(cart.map(cartItem =>
-        cartItem.id === item.id
-          ? { ...cartItem, quantity: cartItem.quantity + 1 }
-          : cartItem
-      ));
-    } else {
-      setCart([...cart, { ...item, quantity: 1, selectedModifiers: [] }]);
-    }
-  };
-
-  const updateQuantity = (id: string, delta: number) => {
-    setCart(cart.map(item => {
-      if (item.id === id) {
-        const newQuantity = Math.max(0, item.quantity + delta);
-        return newQuantity === 0 ? null : { ...item, quantity: newQuantity };
-      }
-      return item;
-    }).filter(Boolean) as OrderItem[]);
-  };
-
-  const removeFromCart = (id: string) => {
-    setCart(cart.filter(item => item.id !== id));
-  };
-
-  const updateCartItemModifiers = (itemId: string, selectedModifiers: string[]) => {
-    setCart(cart.map(item =>
-      item.id === itemId
-        ? { ...item, selectedModifiers }
-        : item
-    ));
-  };
-
-  const openCustomizeDialog = (item: OrderItem) => {
-    setSelectedItem(item);
-    setCustomizeDialogOpen(true);
-  };
-
-  const getTotalPrice = () => {
-    return cart.reduce((total, item) => {
-      const modifierCost = item.selectedModifiers.length * 0.50; // $0.50 per modifier
-      return total + ((item.price + modifierCost) * item.quantity);
-    }, 0);
-  };
 
   const filteredItems = menuItems.filter(item => item.category === selectedCategory);
 
   useEffect(() => {
-    const initializeData = async () => {
-      if (!user) return;
-      
-      // Load current shift and cash total
-      loadCurrentShift();
-      loadCurrentCashTotal();
-    };
-    
-    initializeData();
+    loadCurrentShift();
+    loadCurrentCashTotal();
   }, [user]);
 
   const loadCurrentShift = async () => {
@@ -144,7 +102,7 @@ const POS = () => {
         .eq('status', 'active')
         .maybeSingle();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('Error loading current shift:', error);
         return;
       }
@@ -152,9 +110,6 @@ const POS = () => {
       setCurrentShift(shift);
       
       if (shift) {
-        // Load shift summary
-        const today = new Date().toISOString().split('T')[0];
-        
         const { data: sales, error: salesError } = await supabase
           .from('sales')
           .select('total_amount')
@@ -183,7 +138,6 @@ const POS = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      // Get today's cash sales for this user
       const { data: sales, error } = await supabase
         .from('sales')
         .select('total_amount')
@@ -197,7 +151,6 @@ const POS = () => {
         return;
       }
 
-      // Get today's cash outs for this user
       const { data: cashOuts, error: cashOutError } = await supabase
         .from('cash_outs')
         .select('amount')
@@ -219,13 +172,64 @@ const POS = () => {
     }
   };
 
+  const getTotalPrice = () => {
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  const addToCart = (menuItem: MenuItem) => {
+    const existingItemIndex = cart.findIndex(item => 
+      item.id === menuItem.id && item.selectedModifiers.length === 0
+    );
+
+    if (existingItemIndex >= 0) {
+      const updatedCart = [...cart];
+      updatedCart[existingItemIndex].quantity += 1;
+      setCart(updatedCart);
+    } else {
+      const orderItem: OrderItem = {
+        ...menuItem,
+        quantity: 1,
+        selectedModifiers: []
+      };
+      setCart([...cart, orderItem]);
+    }
+  };
+
+  const removeFromCart = (index: number) => {
+    setCart(cart.filter((_, i) => i !== index));
+  };
+
+  const updateQuantity = (index: number, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeFromCart(index);
+      return;
+    }
+
+    const updatedCart = [...cart];
+    updatedCart[index].quantity = newQuantity;
+    setCart(updatedCart);
+  };
+
+  const openCustomizeDialog = (item: OrderItem) => {
+    setSelectedItem(item);
+    setCustomizeDialogOpen(true);
+  };
+
+  const updateCartItemModifiers = (itemId: string, selectedModifiers: string[]) => {
+    const index = cart.findIndex(item => item === selectedItem);
+    if (index >= 0) {
+      const updatedCart = [...cart];
+      updatedCart[index] = { ...updatedCart[index], selectedModifiers };
+      setCart(updatedCart);
+    }
+  };
+
   const processSale = async (paymentMethod: 'cash' | 'card') => {
     if (cart.length === 0 || !user) return;
 
     try {
       const total = getTotalPrice();
       
-      // Record the sale
       const { error: saleError } = await supabase
         .from('sales')
         .insert({
@@ -246,7 +250,6 @@ const POS = () => {
         return;
       }
 
-      // Create order for tracking
       const { error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -267,13 +270,11 @@ const POS = () => {
         description: `${paymentMethod === 'cash' ? 'Cash' : 'Card'} payment of $${total.toFixed(2)} processed successfully.`,
       });
 
-      // Clear cart and update cash total if cash payment
       setCart([]);
       if (paymentMethod === 'cash') {
         setCurrentCashTotal(prev => prev + total);
       }
       
-      // Reload shift summary
       if (currentShift) {
         loadCurrentShift();
       }
@@ -302,75 +303,74 @@ const POS = () => {
       const { error } = await supabase
         .from('shifts')
         .update({
-          end_time: new Date().toISOString(),
-          ending_cash: currentCashTotal,
-          sales_total: shiftSummary.sales,
-          cash_outs_total: shiftSummary.cashOuts,
           status: 'completed',
+          end_time: new Date().toISOString(),
+          sales_total: shiftSummary.sales,
+          cash_outs_total: shiftSummary.cashOuts
         })
         .eq('id', currentShift.id);
 
-      if (error) throw error;
-
-      toast({
-        title: "Shift Ended",
-        description: `Shift ended with $${currentCashTotal.toFixed(2)} in cash.`,
-      });
+      if (error) {
+        console.error('Error ending shift:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to end shift.",
+        });
+        return;
+      }
 
       setCurrentShift(null);
       setShiftSummary({ sales: 0, cashOuts: 0 });
-      setCurrentCashTotal(0);
-    } catch (error) {
-      console.error('Error ending shift:', error);
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to end shift. Please try again.",
+        title: "Shift Ended",
+        description: "Your shift has been ended successfully.",
       });
+    } catch (error) {
+      console.error('Unexpected error ending shift:', error);
     }
   };
 
-  // Show normal POS interface
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex flex-col lg:flex-row h-screen bg-background pb-20 lg:pb-0">
       {/* Main Content with Tabs */}
       <div className="flex-1">
         <Tabs defaultValue="pos" className="h-full">
-          <div className="border-b border-border p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold text-foreground">Point of Sale</h1>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
+          <div className={`border-b border-border p-4 ${isMobile ? 'pb-20' : ''}`}>
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+              <h1 className="text-xl lg:text-2xl font-bold text-foreground">Point of Sale</h1>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="text-center sm:text-right">
                   <p className="text-sm text-muted-foreground">Today's Cash</p>
                   <p className="text-lg font-bold text-coffee-gold">${currentCashTotal.toFixed(2)}</p>
                 </div>
                 {!currentShift && (
                   <Button
                     onClick={() => setStartShiftDialogOpen(true)}
-                    className="gap-2 bg-gradient-coffee hover:opacity-90"
+                    className="gap-2 bg-gradient-coffee hover:opacity-90 w-full sm:w-auto"
                   >
                     <Clock className="h-4 w-4" />
                     Start Shift
                   </Button>
                 )}
                 {currentShift && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       onClick={() => setCashOutDialogOpen(true)}
-                      className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10"
+                      className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10 flex-1 sm:flex-none"
                       disabled={currentCashTotal <= 0}
                     >
                       <Calculator className="h-4 w-4" />
-                      Cash Out
+                      <span className="hidden sm:inline">Cash Out</span>
                     </Button>
                     <Button
                       variant="outline"
                       onClick={handleEndShift}
-                      className="gap-2 border-destructive/30 hover:bg-destructive/10"
+                      className="gap-2 border-destructive/30 hover:bg-destructive/10 flex-1 sm:flex-none"
                     >
                       <StopCircle className="h-4 w-4" />
-                      End Shift
+                      <span className="hidden sm:inline">End Shift</span>
                     </Button>
                   </div>
                 )}
@@ -383,34 +383,34 @@ const POS = () => {
             </TabsList>
           </div>
 
-          <TabsContent value="pos" className="flex h-[calc(100vh-140px)] m-0">
+          <TabsContent value="pos" className="flex flex-col lg:flex-row h-[calc(100vh-140px)] m-0">
             {/* Menu Section */}
-            <div className="flex-1 p-6">
-              <p className="text-muted-foreground mb-6">
+            <div className="flex-1 p-4 lg:p-6">
+              <p className="text-muted-foreground mb-4 lg:mb-6 text-sm lg:text-base">
                 {currentShift ? 'Select items to add to the current order' : 'Start a shift to begin taking orders'}
               </p>
 
               {/* Category Tabs */}
-              <div className="flex gap-2 mb-6">
+              <div className="flex gap-2 mb-4 lg:mb-6 overflow-x-auto pb-2">
                 {categories.map((category) => (
                   <Button
                     key={category.id}
                     variant={selectedCategory === category.id ? "default" : "outline"}
                     onClick={() => setSelectedCategory(category.id)}
-                    className="gap-2"
+                    className="gap-2 shrink-0"
                   >
                     <category.icon className="h-4 w-4" />
-                    {category.name}
+                    <span className="hidden sm:inline">{category.name}</span>
                   </Button>
                 ))}
               </div>
 
               {/* Menu Items Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
                 {filteredItems.map((item) => (
                   <Card
                     key={item.id}
-                    className={`p-4 transition-all duration-200 border-2 ${
+                    className={`p-3 lg:p-4 transition-all duration-200 border-2 ${
                       currentShift 
                         ? "cursor-pointer hover:shadow-coffee hover:border-coffee-gold/30" 
                         : "opacity-50 cursor-not-allowed"
@@ -418,13 +418,13 @@ const POS = () => {
                     onClick={() => currentShift && addToCart(item)}
                   >
                     <div className="text-center">
-                      <div className="h-20 w-20 mx-auto mb-3 rounded-full bg-gradient-cream flex items-center justify-center">
-                        <Coffee className="h-8 w-8 text-coffee-bean" />
+                      <div className="h-16 w-16 lg:h-20 lg:w-20 mx-auto mb-2 lg:mb-3 rounded-full bg-gradient-cream flex items-center justify-center">
+                        <Coffee className="h-6 w-6 lg:h-8 lg:w-8 text-coffee-bean" />
                       </div>
-                      <h3 className="font-semibold text-foreground mb-1">{item.name}</h3>
-                      <p className="text-lg font-bold text-coffee-gold">${item.price.toFixed(2)}</p>
+                      <h3 className="font-semibold text-foreground mb-1 text-sm lg:text-base">{item.name}</h3>
+                      <p className="text-base lg:text-lg font-bold text-coffee-gold">${item.price.toFixed(2)}</p>
                       {item.modifiers && (
-                        <Badge variant="secondary" className="mt-2 text-xs">
+                        <Badge variant="secondary" className="mt-1 lg:mt-2 text-xs">
                           Customizable
                         </Badge>
                       )}
@@ -434,120 +434,123 @@ const POS = () => {
               </div>
             </div>
 
-            {/* Cart Section */}
-            <div className="w-96 bg-card border-l border-border shadow-elevated">
-              <div className="p-6 border-b border-border">
-                <h2 className="text-xl font-bold text-foreground">Current Order</h2>
-              </div>
+            {/* Desktop Cart Sidebar */}
+            {!isMobile && (
+              <div className="w-96 bg-card border-l border-border shadow-elevated">
+                <div className="p-6 border-b border-border">
+                  <h2 className="text-xl font-bold text-foreground">Current Order</h2>
+                </div>
 
-              <ScrollArea className="flex-1 p-4 h-[calc(100vh-280px)]">
-                {cart.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">
-                    <Coffee className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No items in cart</p>
-                  </div>
-                ) : (
+                <ScrollArea className="flex-1 p-4 h-[calc(100vh-280px)]">
+                  {cart.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      <Coffee className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No items in cart</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {cart.map((item, index) => (
+                        <Card key={`${item.id}-${index}`} className="p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-foreground">{item.name}</h4>
+                              <p className="text-sm text-coffee-gold">${item.price.toFixed(2)} each</p>
+                              {item.selectedModifiers.length > 0 && (
+                                <div className="mt-1">
+                                  {item.selectedModifiers.map((modifier) => (
+                                    <Badge key={modifier} variant="outline" className="mr-1 text-xs">
+                                      {modifier}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFromCart(index)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQuantity(index, item.quantity - 1)}
+                                disabled={item.quantity <= 1}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="font-medium px-2">{item.quantity}</span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQuantity(index, item.quantity + 1)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <span className="font-bold text-coffee-gold">
+                              ${(item.price * item.quantity).toFixed(2)}
+                            </span>
+                          </div>
+                          
+                          {item.modifiers && item.modifiers.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full mt-2 h-6 text-xs"
+                              onClick={() => openCustomizeDialog(item)}
+                            >
+                              <Settings className="h-3 w-3 mr-1" />
+                              Customize
+                            </Button>
+                          )}
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+
+                {/* Checkout Section */}
+                <div className="p-4 border-t border-border bg-muted/30">
                   <div className="space-y-3">
-                    {cart.map((item) => (
-                      <Card key={item.id} className="p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-foreground">{item.name}</h4>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFromCart(item.id)}
-                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, -1)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="text-sm font-medium w-8 text-center">{item.quantity}</span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <p className="font-semibold text-coffee-gold">
-                            ${((item.price + (item.selectedModifiers.length * 0.50)) * item.quantity).toFixed(2)}
-                          </p>
-                        </div>
-
-                        {item.selectedModifiers.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {item.selectedModifiers.map((modifier) => (
-                              <Badge key={modifier} variant="secondary" className="text-xs">
-                                {modifier}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-
-                        {item.modifiers && item.modifiers.length > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full mt-2 h-6 text-xs"
-                            onClick={() => openCustomizeDialog(item)}
-                          >
-                            <Settings className="h-3 w-3 mr-1" />
-                            Customize
-                          </Button>
-                        )}
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-
-              {/* Checkout Section */}
-              <div className="p-4 border-t border-border bg-muted/30">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-foreground">Total:</span>
-                    <span className="text-xl font-bold text-coffee-gold">
-                      ${getTotalPrice().toFixed(2)}
-                    </span>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="gap-2"
-                      onClick={() => processSale('cash')}
-                      disabled={cart.length === 0 || !currentShift}
-                    >
-                      <DollarSign className="h-4 w-4" />
-                      Cash
-                    </Button>
-                    <Button 
-                      className="gap-2 bg-gradient-coffee hover:opacity-90"
-                      onClick={() => processSale('card')}
-                      disabled={cart.length === 0 || !currentShift}
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      Card
-                    </Button>
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-foreground">Total:</span>
+                      <span className="text-xl font-bold text-coffee-gold">
+                        ${getTotalPrice().toFixed(2)}
+                      </span>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="gap-2"
+                        onClick={() => processSale('cash')}
+                        disabled={cart.length === 0 || !currentShift}
+                      >
+                        <DollarSign className="h-4 w-4" />
+                        Cash
+                      </Button>
+                      <Button 
+                        className="gap-2 bg-gradient-coffee hover:opacity-90"
+                        onClick={() => processSale('card')}
+                        disabled={cart.length === 0 || !currentShift}
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        Card
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </TabsContent>
 
           <TabsContent value="orders" className="h-[calc(100vh-140px)] m-0">
@@ -564,6 +567,38 @@ const POS = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Mobile Bottom Cart */}
+      {isMobile && cart.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 p-4">
+          <div className="flex justify-between items-center mb-3">
+            <span className="font-semibold text-foreground">Cart ({cart.length})</span>
+            <span className="text-lg font-bold text-coffee-gold">
+              ${getTotalPrice().toFixed(2)}
+            </span>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={() => processSale('cash')}
+              disabled={cart.length === 0 || !currentShift}
+            >
+              <DollarSign className="h-4 w-4" />
+              Cash
+            </Button>
+            <Button 
+              className="gap-2 bg-gradient-coffee hover:opacity-90"
+              onClick={() => processSale('card')}
+              disabled={cart.length === 0 || !currentShift}
+            >
+              <CreditCard className="h-4 w-4" />
+              Card
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Modifier Dialog */}
       {selectedItem && (
