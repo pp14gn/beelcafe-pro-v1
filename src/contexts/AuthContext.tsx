@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 interface UserProfile {
@@ -90,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      setUserProfile(data);
+      setUserProfile(data as UserProfile);
     } catch (error) {
       console.error('Unexpected error fetching user profile:', error);
       setUserProfile(null);
@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if ((email === 'admin@coffeepos.com' || email === 'admin') && password === 'admin') {
         // Create a mock user for admin
         const adminUser = {
-          id: 'admin-user-id',
+          id: '00000000-0000-0000-0000-000000000001',
           email: 'admin@coffeepos.com',
           created_at: new Date().toISOString(),
           app_metadata: {},
@@ -113,7 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         
         const adminProfile = {
-          id: 'admin-user-id',
+          id: '00000000-0000-0000-0000-000000000001',
           username: 'admin',
           full_name: 'System Administrator',
           role: 'admin' as const,
