@@ -75,6 +75,12 @@ const Sidebar = () => {
           variant="ghost" 
           size="sm" 
           className="w-full justify-start gap-3 text-coffee-cream/80 hover:bg-coffee-cream/10 hover:text-coffee-cream"
+          onClick={() => {
+            // Add logout functionality here
+            console.log("Signing out...");
+            // For now, just reload the page
+            window.location.reload();
+          }}
         >
           <LogOut className="h-4 w-4" />
           Sign Out

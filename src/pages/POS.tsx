@@ -189,6 +189,10 @@ const POS = () => {
                       variant="ghost"
                       size="sm"
                       className="w-full mt-2 h-6 text-xs"
+                      onClick={() => {
+                        console.log("Opening modifiers for:", item.name);
+                        // TODO: Open modifier selection dialog
+                      }}
                     >
                       <Settings className="h-3 w-3 mr-1" />
                       Customize
@@ -213,11 +217,30 @@ const POS = () => {
             <Separator />
             
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" className="gap-2">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => {
+                  if (cart.length > 0) {
+                    console.log("Processing cash payment:", getTotalPrice());
+                    setCart([]);
+                  }
+                }}
+                disabled={cart.length === 0}
+              >
                 <DollarSign className="h-4 w-4" />
                 Cash
               </Button>
-              <Button className="gap-2 bg-gradient-coffee hover:opacity-90">
+              <Button 
+                className="gap-2 bg-gradient-coffee hover:opacity-90"
+                onClick={() => {
+                  if (cart.length > 0) {
+                    console.log("Processing card payment:", getTotalPrice());
+                    setCart([]);
+                  }
+                }}
+                disabled={cart.length === 0}
+              >
                 <CreditCard className="h-4 w-4" />
                 Card
               </Button>
