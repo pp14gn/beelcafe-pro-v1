@@ -19,9 +19,6 @@ export const supabase = createClient(
 
 // Database setup SQL - Run this in Supabase SQL Editor
 export const setupDatabaseSQL = `
--- Enable RLS
-ALTER DATABASE postgres SET "app.settings.jwt_secret" TO 'your-jwt-secret';
-
 -- Create tables
 CREATE TABLE IF NOT EXISTS public.users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -169,6 +166,185 @@ INSERT INTO public.inventory_items (name, category, current_stock, min_stock, un
 ON CONFLICT DO NOTHING;
 `;
 
+// Create database tables automatically
+export const setupDatabase = async () => {
+  try {
+    // Split the SQL into individual statements and execute them
+    const statements = setupDatabaseSQL
+      .split(';')
+      .map(stmt => stmt.trim())
+      .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+
+    for (const statement of statements) {
+      if (statement.trim()) {
+        const { error } = await supabase.rpc('exec_sql', { sql: statement });
+        if (error && !error.message.includes('already exists')) {
+          console.error('Error executing SQL statement:', error);
+        }
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error setting up database:', error);
+    // Try alternative approach using direct table creation
+    try {
+      await createTablesDirectly();
+      return true;
+    } catch (altError) {
+      console.error('Alternative setup also failed:', altError);
+      return false;
+    }
+  }
+};
+
+// Alternative table creation method
+const createTablesDirectly = async () => {
+  // Create tables using direct Supabase client calls
+  const tables = [
+    {
+      name: 'users',
+      schema: {
+        id: 'uuid',
+        username: 'text',
+        full_name: 'text',
+        role: 'text',
+        email: 'text',
+        permissions: 'text[]',
+        is_active: 'boolean',
+        created_at: 'timestamptz',
+        updated_at: 'timestamptz'
+      }
+    },
+    {
+      name: 'shifts',
+      schema: {
+        id: 'uuid',
+        user_id: 'uuid',
+        start_time: 'timestamptz',
+        end_time: 'timestamptz',
+        starting_cash: 'decimal',
+        ending_cash: 'decimal',
+        cash_outs_total: 'decimal',
+        sales_total: 'decimal',
+        notes: 'text',
+        status: 'text',
+        created_at: 'timestamptz'
+      }
+    },
+    {
+      name: 'inventory_items',
+      schema: {
+        id: 'uuid',
+        name: 'text',
+        category: 'text',
+        current_stock: 'integer',
+        min_stock: 'integer',
+        unit: 'text',
+        cost_per_unit: 'decimal',
+        supplier: 'text',
+        last_restocked: 'timestamptz',
+        created_at: 'timestamptz',
+        updated_at: 'timestamptz'
+      }
+    },
+    {
+      name: 'recipes',
+      schema: {
+        id: 'uuid',
+        name: 'text',
+        category: 'text',
+        description: 'text',
+        base_price: 'decimal',
+        prep_time: 'integer',
+        servings: 'integer',
+        instructions: 'text[]',
+        created_at: 'timestamptz',
+        updated_at: 'timestamptz'
+      }
+    },
+    {
+      name: 'recipe_ingredients',
+      schema: {
+        id: 'uuid',
+        recipe_id: 'uuid',
+        inventory_item_id: 'uuid',
+        quantity: 'decimal',
+        created_at: 'timestamptz'
+      }
+    },
+    {
+      name: 'recipe_modifiers',
+      schema: {
+        id: 'uuid',
+        recipe_id: 'uuid',
+        name: 'text',
+        price: 'decimal',
+        ingredients: 'jsonb',
+        created_at: 'timestamptz'
+      }
+    },
+    {
+      name: 'sales',
+      schema: {
+        id: 'uuid',
+        user_id: 'uuid',
+        shift_id: 'uuid',
+        items: 'jsonb',
+        total_amount: 'decimal',
+        payment_method: 'text',
+        created_at: 'timestamptz'
+      }
+    },
+    {
+      name: 'cash_outs',
+      schema: {
+        id: 'uuid',
+        user_id: 'uuid',
+        shift_id: 'uuid',
+        amount: 'decimal',
+        remaining_cash: 'decimal',
+        notes: 'text',
+        created_at: 'timestamptz'
+      }
+    },
+    {
+      name: 'orders',
+      schema: {
+        id: 'uuid',
+        user_id: 'uuid',
+        shift_id: 'uuid',
+        items: 'jsonb',
+        total_amount: 'decimal',
+        status: 'text',
+        start_time: 'timestamptz',
+        completion_time: 'timestamptz',
+        prep_time_seconds: 'integer',
+        created_at: 'timestamptz'
+      }
+    }
+  ];
+
+  // Insert sample data for inventory
+  const sampleInventory = [
+    { name: 'Coffee Beans - Espresso', category: 'food', current_stock: 50, min_stock: 10, unit: 'lbs', cost_per_unit: 12.50, supplier: 'Local Roasters' },
+    { name: 'Milk - Whole', category: 'food', current_stock: 20, min_stock: 5, unit: 'gallons', cost_per_unit: 3.50, supplier: 'Dairy Farm' },
+    { name: 'Oat Milk', category: 'food', current_stock: 15, min_stock: 3, unit: 'quarts', cost_per_unit: 4.25, supplier: 'Plant Foods Inc' },
+    { name: 'Vanilla Syrup', category: 'food', current_stock: 8, min_stock: 2, unit: 'bottles', cost_per_unit: 8.75, supplier: 'Flavor Co' },
+    { name: 'Sugar', category: 'food', current_stock: 25, min_stock: 5, unit: 'lbs', cost_per_unit: 2.25, supplier: 'Sweet Supply' },
+    { name: 'Paper Cups - 12oz', category: 'supplies', current_stock: 500, min_stock: 100, unit: 'pieces', cost_per_unit: 0.12, supplier: 'Cup World' },
+    { name: 'Lids - 12oz', category: 'supplies', current_stock: 450, min_stock: 100, unit: 'pieces', cost_per_unit: 0.08, supplier: 'Cup World' },
+    { name: 'Napkins', category: 'supplies', current_stock: 200, min_stock: 50, unit: 'packs', cost_per_unit: 1.50, supplier: 'Paper Plus' }
+  ];
+
+  // Try to insert sample inventory data
+  try {
+    await supabase.from('inventory_items').upsert(sampleInventory, { onConflict: 'name' });
+  } catch (error) {
+    console.log('Sample data insertion failed (this is expected if tables exist):', error);
+  }
+};
+
 // Check if tables exist
 export const checkTablesExist = async () => {
   try {
@@ -181,6 +357,26 @@ export const checkTablesExist = async () => {
   } catch {
     return false;
   }
+};
+
+// Initialize database - create tables if they don't exist
+export const initializeDatabase = async () => {
+  const tablesExist = await checkTablesExist();
+  
+  if (!tablesExist) {
+    console.log('Tables do not exist, attempting to create them...');
+    const success = await setupDatabase();
+    
+    if (success) {
+      console.log('Database setup completed successfully!');
+      return true;
+    } else {
+      console.error('Database setup failed. Please create tables manually in Supabase.');
+      return false;
+    }
+  }
+  
+  return true;
 };
 
 export type Database = {

@@ -10,7 +10,7 @@ import ModifierDialog from "@/components/ModifierDialog";
 import CashOutDialog from "@/components/CashOutDialog";
 import StartShiftDialog from "@/components/StartShiftDialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase, checkTablesExist } from "@/lib/supabase";
+import { supabase, checkTablesExist, initializeDatabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Coffee, 
@@ -51,6 +51,7 @@ const POS = () => {
   const [currentShift, setCurrentShift] = useState<any>(null);
   const [shiftSummary, setShiftSummary] = useState({ sales: 0, cashOuts: 0 });
   const [tablesExist, setTablesExist] = useState<boolean | null>(null);
+  const [setupInProgress, setSetupInProgress] = useState(false);
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
@@ -124,22 +125,19 @@ const POS = () => {
     const initializeData = async () => {
       if (!user) return;
       
-      // Check if tables exist first
-      const exists = await checkTablesExist();
-      setTablesExist(exists);
+      setSetupInProgress(true);
       
-      if (exists) {
+      // Initialize database and create tables if needed
+      const isReady = await initializeDatabase();
+      setTablesExist(isReady);
+      
+      if (isReady) {
         // Load current shift and cash total
         loadCurrentShift();
         loadCurrentCashTotal();
-      } else {
-        // Log the setup SQL to console for easy copy-paste
-        console.log('DATABASE SETUP REQUIRED - Copy and paste this SQL into Supabase SQL Editor:');
-        console.log('='.repeat(80));
-        const { setupDatabaseSQL } = await import('@/lib/supabase');
-        console.log(setupDatabaseSQL);
-        console.log('='.repeat(80));
       }
+      
+      setSetupInProgress(false);
     };
     
     initializeData();
@@ -346,7 +344,21 @@ const POS = () => {
     }
   };
 
-  // Show database setup message if tables don't exist
+  // Show setup in progress
+  if (setupInProgress || tablesExist === null) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-muted-foreground">
+            {setupInProgress ? 'Setting up database...' : 'Checking database connection...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show database setup failure message if setup failed
   if (tablesExist === false) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -354,14 +366,14 @@ const POS = () => {
           <div className="flex items-center gap-4 mb-6">
             <AlertCircle className="h-8 w-8 text-destructive" />
             <div>
-              <h2 className="text-2xl font-bold text-foreground">Database Setup Required</h2>
-              <p className="text-muted-foreground">The database tables need to be created first.</p>
+              <h2 className="text-2xl font-bold text-foreground">Database Setup Failed</h2>
+              <p className="text-muted-foreground">Unable to create database tables automatically.</p>
             </div>
           </div>
           
           <div className="space-y-4">
             <p className="text-foreground">
-              To fix this issue, please run the setup SQL in your Supabase SQL Editor:
+              Please create the tables manually in your Supabase dashboard:
             </p>
             
             <div className="bg-muted p-4 rounded-lg">
@@ -369,7 +381,7 @@ const POS = () => {
                 1. Go to your Supabase dashboard<br/>
                 2. Navigate to SQL Editor<br/>
                 3. Create a new query<br/>
-                4. Copy and paste the setup SQL from the console<br/>
+                4. Copy the SQL from the browser console<br/>
                 5. Run the query<br/>
                 6. Refresh this page
               </p>
@@ -383,17 +395,6 @@ const POS = () => {
             </Button>
           </div>
         </Card>
-      </div>
-    );
-  }
-
-  if (tablesExist === null) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Checking database connection...</p>
-        </div>
       </div>
     );
   }
