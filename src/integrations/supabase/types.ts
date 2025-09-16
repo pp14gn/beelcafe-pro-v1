@@ -204,28 +204,35 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          inventory_item_id: string
           is_active: boolean
-          name: string
-          price: number
+          quantity: number | null
           recipe_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          inventory_item_id: string
           is_active?: boolean
-          name: string
-          price?: number
+          quantity?: number | null
           recipe_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          inventory_item_id?: string
           is_active?: boolean
-          name?: string
-          price?: number
+          quantity?: number | null
           recipe_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_recipe_modifiers_inventory_item"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "recipe_modifiers_recipe_id_fkey"
             columns: ["recipe_id"]

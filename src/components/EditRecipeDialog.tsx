@@ -43,8 +43,27 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
   });
   const [modifiers, setModifiers] = useState<any[]>([]);
   const [editingModifier, setEditingModifier] = useState<any>(null);
-  const [newModifier, setNewModifier] = useState({ name: "", price: "" });
+  const [newModifier, setNewModifier] = useState({ inventory_item_id: "", quantity: "1" });
+  const [availableInventoryItems, setAvailableInventoryItems] = useState<any[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    loadInventoryItems();
+  }, []);
+
+  const loadInventoryItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setAvailableInventoryItems(data || []);
+    } catch (error) {
+      console.error('Error loading inventory items:', error);
+    }
+  };
 
   useEffect(() => {
     if (recipe) {
@@ -59,29 +78,46 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
           ? recipe.instructions.join('\n') 
           : (recipe.instructions || ""),
       });
-      setModifiers(recipe.recipe_modifiers || []);
+      loadRecipeModifiers();
+      setNewModifier({ inventory_item_id: "", quantity: "1" });
     }
   }, [recipe]);
 
+  const loadRecipeModifiers = async () => {
+    if (!recipe?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('recipe_modifiers')
+        .select('*, inventory_item:inventory_items(*)')
+        .eq('recipe_id', recipe.id);
+
+      if (error) throw error;
+      setModifiers(data || []);
+    } catch (error) {
+      console.error('Error loading recipe modifiers:', error);
+    }
+  };
+
   const addModifier = async () => {
-    if (!newModifier.name || !newModifier.price) return;
+    if (!newModifier.inventory_item_id || !newModifier.quantity) return;
     
     try {
       const { data, error } = await supabase
         .from('recipe_modifiers')
         .insert({
           recipe_id: recipe.id,
-          name: newModifier.name,
-          price: parseFloat(newModifier.price),
+          inventory_item_id: newModifier.inventory_item_id,
+          quantity: parseFloat(newModifier.quantity),
           is_active: true
         })
-        .select()
+        .select('*, inventory_item:inventory_items(*)')
         .single();
 
       if (error) throw error;
 
       setModifiers([...modifiers, data]);
-      setNewModifier({ name: "", price: "" });
+      setNewModifier({ inventory_item_id: "", quantity: "1" });
       
       toast({
         title: "Success",
@@ -97,23 +133,28 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
     }
   };
 
-  const updateModifier = async (modifierId: string, name: string, price: string) => {
+  const updateModifier = async (modifierId: string, inventory_item_id: string, quantity: string) => {
     try {
       const { error } = await supabase
         .from('recipe_modifiers')
         .update({
-          name: name,
-          price: parseFloat(price)
+          inventory_item_id: inventory_item_id,
+          quantity: parseFloat(quantity)
         })
         .eq('id', modifierId);
 
       if (error) throw error;
 
-      setModifiers(modifiers.map(mod => 
-        mod.id === modifierId 
-          ? { ...mod, name, price: parseFloat(price) }
-          : mod
-      ));
+      // Reload modifiers to get updated data with inventory item info
+      const { data: updatedModifiers, error: fetchError } = await supabase
+        .from('recipe_modifiers')
+        .select('*, inventory_item:inventory_items(*)')
+        .eq('recipe_id', recipe.id);
+
+      if (!fetchError) {
+        setModifiers(updatedModifiers || []);
+      }
+      
       setEditingModifier(null);
       
       toast({
@@ -303,17 +344,28 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
             <CardContent className="space-y-4">
               {/* Add new modifier */}
               <div className="flex gap-2">
-                <Input
-                  placeholder="Modifier name"
-                  value={newModifier.name}
-                  onChange={(e) => setNewModifier(prev => ({ ...prev, name: e.target.value }))}
-                />
+                <Select
+                  value={newModifier.inventory_item_id}
+                  onValueChange={(value) => setNewModifier(prev => ({ ...prev, inventory_item_id: value }))}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select inventory item" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableInventoryItems.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name} (${item.cost_per_unit.toFixed(2)}/{item.unit})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="Price"
-                  value={newModifier.price}
-                  onChange={(e) => setNewModifier(prev => ({ ...prev, price: e.target.value }))}
+                  placeholder="Quantity"
+                  value={newModifier.quantity}
+                  onChange={(e) => setNewModifier(prev => ({ ...prev, quantity: e.target.value }))}
+                  className="w-24"
                 />
                 <Button onClick={addModifier} size="sm">
                   <Plus className="h-4 w-4" />
@@ -326,19 +378,31 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                   <div key={modifier.id} className="flex items-center gap-2 p-2 border rounded">
                     {editingModifier?.id === modifier.id ? (
                       <>
-                        <Input
-                          value={editingModifier.name}
-                          onChange={(e) => setEditingModifier(prev => ({ ...prev, name: e.target.value }))}
-                        />
+                        <Select
+                          value={editingModifier.inventory_item_id}
+                          onValueChange={(value) => setEditingModifier(prev => ({ ...prev, inventory_item_id: value }))}
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableInventoryItems.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                {item.name} (${item.cost_per_unit.toFixed(2)}/{item.unit})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Input
                           type="number"
                           step="0.01"
-                          value={editingModifier.price}
-                          onChange={(e) => setEditingModifier(prev => ({ ...prev, price: e.target.value }))}
+                          value={editingModifier.quantity}
+                          onChange={(e) => setEditingModifier(prev => ({ ...prev, quantity: e.target.value }))}
+                          className="w-24"
                         />
                         <Button 
                           size="sm" 
-                          onClick={() => updateModifier(modifier.id, editingModifier.name, editingModifier.price)}
+                          onClick={() => updateModifier(modifier.id, editingModifier.inventory_item_id, editingModifier.quantity)}
                         >
                           Save
                         </Button>
@@ -353,9 +417,14 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                     ) : (
                       <>
                         <div className="flex-1">
-                          <span className="font-medium">{modifier.name}</span>
+                          <span className="font-medium">
+                            {modifier.inventory_item?.name || 'Unknown Item'}
+                          </span>
                           <Badge variant="secondary" className="ml-2">
-                            ${modifier.price.toFixed(2)}
+                            {modifier.quantity} {modifier.inventory_item?.unit || ''}
+                          </Badge>
+                          <Badge variant="outline" className="ml-1">
+                            ${((modifier.inventory_item?.cost_per_unit || 0) * modifier.quantity).toFixed(2)}
                           </Badge>
                         </div>
                         <Button 
@@ -363,8 +432,8 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                           variant="ghost"
                           onClick={() => setEditingModifier({ 
                             id: modifier.id, 
-                            name: modifier.name, 
-                            price: modifier.price.toString() 
+                            inventory_item_id: modifier.inventory_item_id, 
+                            quantity: modifier.quantity.toString() 
                           })}
                         >
                           <Edit3 className="h-4 w-4" />

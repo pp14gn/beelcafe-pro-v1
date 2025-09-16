@@ -38,8 +38,8 @@ interface RecipeIngredient {
 }
 
 interface RecipeModifier {
-  name: string;
-  price: number;
+  inventory_item_id: string;
+  quantity: number;
 }
 
 interface AddRecipeDialogProps {
@@ -62,8 +62,28 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
   const [modifiers, setModifiers] = useState<RecipeModifier[]>([]);
   const [instructions, setInstructions] = useState<string[]>([""]);
+  const [availableInventoryItems, setAvailableInventoryItems] = useState<any[]>([]);
 
   const { toast } = useToast();
+
+  useEffect(() => {
+    loadInventoryItems();
+  }, []);
+
+  const loadInventoryItems = async () => {
+    try {
+      const { data: inventoryData, error } = await supabase
+        .from('inventory_items')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+
+      setAvailableInventoryItems(inventoryData || []);
+    } catch (error) {
+      console.error('Error loading inventory items:', error);
+    }
+  };
 
   const categories = [
     { value: "coffee", label: "Coffee" },
@@ -71,26 +91,6 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
     { value: "pastries", label: "Pastries" },
     { value: "beverages", label: "Beverages" },
   ];
-
-  useEffect(() => {
-    if (isOpen) {
-      loadInventoryItems();
-    }
-  }, [isOpen]);
-
-  const loadInventoryItems = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('inventory_items')
-        .select('id, name, unit, current_stock, category')
-        .order('name');
-
-      if (error) throw error;
-      setInventoryItems(data || []);
-    } catch (error) {
-      console.error('Error loading inventory items:', error);
-    }
-  };
 
   const addIngredient = () => {
     setIngredients([...ingredients, { inventory_item_id: "", quantity: 0, name: "", unit: "" }]);
@@ -114,7 +114,7 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
   };
 
   const addModifier = () => {
-    setModifiers([...modifiers, { name: "", price: 0 }]);
+    setModifiers([...modifiers, { inventory_item_id: "", quantity: 1 }]);
   };
 
   const updateModifier = (index: number, field: string, value: string | number) => {
@@ -189,8 +189,8 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
           .insert(
             modifiers.map(modifier => ({
               recipe_id: recipe.id,
-              name: modifier.name,
-              price: modifier.price,
+              inventory_item_id: modifier.inventory_item_id,
+              quantity: modifier.quantity,
             }))
           );
 
@@ -402,22 +402,33 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
                 {modifiers.map((modifier, index) => (
                   <div key={index} className="flex gap-3 items-end">
                     <div className="flex-1 space-y-2">
-                      <Label>Modifier Name</Label>
-                      <Input
-                        value={modifier.name}
-                        onChange={(e) => updateModifier(index, 'name', e.target.value)}
-                        placeholder="e.g., Extra Shot"
-                      />
+                      <Label>Inventory Item</Label>
+                      <Select
+                        value={modifier.inventory_item_id}
+                        onValueChange={(value) => updateModifier(index, 'inventory_item_id', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select inventory item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableInventoryItems.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name} (${item.cost_per_unit?.toFixed(2) || '0.00'}/{item.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="w-32 space-y-2">
-                      <Label>Price ($)</Label>
+                      <Label>Quantity</Label>
                       <Input
                         type="number"
                         step="0.01"
-                        value={modifier.price}
-                        onChange={(e) => updateModifier(index, 'price', parseFloat(e.target.value))}
-                        placeholder="0.75"
+                        min="0"
+                        value={modifier.quantity}
+                        onChange={(e) => updateModifier(index, 'quantity', parseFloat(e.target.value) || 0)}
+                        placeholder="1"
                       />
                     </div>
 

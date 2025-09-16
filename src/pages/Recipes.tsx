@@ -84,7 +84,17 @@ const Recipes = () => {
         .from('recipes')
         .select(`
           *,
-          recipe_modifiers(*),
+          recipe_modifiers(
+            id,
+            quantity,
+            is_active,
+            inventory_item:inventory_items(
+              id,
+              name,
+              cost_per_unit,
+              unit
+            )
+          ),
           recipe_ingredients(
             quantity,
             inventory_items(

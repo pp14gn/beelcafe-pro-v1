@@ -36,8 +36,13 @@ interface MenuItem {
   category: string;
   modifiers?: {
     id: string;
-    name: string;
-    price: number;
+    inventory_item: {
+      id: string;
+      name: string;
+      cost_per_unit: number;
+      unit: string;
+    };
+    quantity: number;
   }[];
 }
 
@@ -45,8 +50,13 @@ interface OrderItem extends MenuItem {
   quantity: number;
   selectedModifiers: {
     id: string;
-    name: string;
-    price: number;
+    inventory_item: {
+      id: string;
+      name: string;
+      cost_per_unit: number;
+      unit: string;
+    };
+    quantity: number;
   }[];
 }
 
@@ -103,9 +113,14 @@ const POS = () => {
           is_active,
           recipe_modifiers (
             id,
-            name,
-            price,
-            is_active
+            quantity,
+            is_active,
+            inventory_item:inventory_items (
+              id,
+              name,
+              cost_per_unit,
+              unit
+            )
           )
         `)
         .eq('is_active', true);
@@ -126,11 +141,16 @@ const POS = () => {
         price: Number(recipe.base_price),
         category: recipe.category,
         modifiers: recipe.recipe_modifiers
-          ?.filter(modifier => modifier.is_active)
+          ?.filter(modifier => modifier.is_active && modifier.inventory_item)
           ?.map(modifier => ({
             id: modifier.id,
-            name: modifier.name,
-            price: Number(modifier.price)
+            inventory_item: {
+              id: modifier.inventory_item.id,
+              name: modifier.inventory_item.name,
+              cost_per_unit: Number(modifier.inventory_item.cost_per_unit),
+              unit: modifier.inventory_item.unit
+            },
+            quantity: Number(modifier.quantity)
           })) || []
       })) || [];
 
@@ -247,7 +267,7 @@ const POS = () => {
     return cart.reduce((total, item) => {
       const basePrice = item.price * item.quantity;
       const modifierPrice = item.selectedModifiers.reduce((modTotal, modifier) => 
-        modTotal + (modifier.price * item.quantity), 0
+        modTotal + (modifier.inventory_item.cost_per_unit * modifier.quantity * item.quantity), 0
       );
       return total + basePrice + modifierPrice;
     }, 0);
@@ -370,7 +390,16 @@ const POS = () => {
     setCustomizeDialogOpen(true);
   };
 
-  const updateCartItemModifiers = (itemId: string, selectedModifiers: {id: string, name: string, price: number}[]) => {
+  const updateCartItemModifiers = (itemId: string, selectedModifiers: {
+    id: string;
+    inventory_item: {
+      id: string;
+      name: string;
+      cost_per_unit: number;
+      unit: string;
+    };
+    quantity: number;
+  }[]) => {
     const index = cart.findIndex(item => item === selectedItem);
     if (index >= 0) {
       const updatedCart = [...cart];
@@ -713,7 +742,7 @@ const POS = () => {
                                 <div className="mt-1">
                                   {item.selectedModifiers.map((modifier) => (
                                     <Badge key={modifier.id} variant="outline" className="mr-1 text-xs">
-                                      {modifier.name} (+${modifier.price.toFixed(2)})
+                                      {modifier.inventory_item.name} x{modifier.quantity} (+${(modifier.inventory_item.cost_per_unit * modifier.quantity).toFixed(2)})
                                     </Badge>
                                   ))}
                                 </div>
@@ -749,7 +778,7 @@ const POS = () => {
                               </Button>
                             </div>
                             <span className="font-bold text-coffee-gold">
-                              ${((item.price + item.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0)) * item.quantity).toFixed(2)}
+                              ${((item.price + item.selectedModifiers.reduce((sum, mod) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0)) * item.quantity).toFixed(2)}
                             </span>
                           </div>
                           

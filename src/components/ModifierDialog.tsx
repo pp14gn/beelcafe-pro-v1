@@ -20,22 +20,59 @@ interface ModifierDialogProps {
     price: number;
     modifiers?: {
       id: string;
-      name: string;
-      price: number;
+      inventory_item: {
+        id: string;
+        name: string;
+        cost_per_unit: number;
+        unit: string;
+      };
+      quantity: number;
     }[];
     selectedModifiers: {
       id: string;
-      name: string;
-      price: number;
+      inventory_item: {
+        id: string;
+        name: string;
+        cost_per_unit: number;
+        unit: string;
+      };
+      quantity: number;
     }[];
   };
-  onConfirm: (itemId: string, selectedModifiers: {id: string, name: string, price: number}[]) => void;
+  onConfirm: (itemId: string, selectedModifiers: {
+    id: string;
+    inventory_item: {
+      id: string;
+      name: string;
+      cost_per_unit: number;
+      unit: string;
+    };
+    quantity: number;
+  }[]) => void;
 }
 
 const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProps) => {
-  const [selectedModifiers, setSelectedModifiers] = useState<{id: string, name: string, price: number}[]>(item.selectedModifiers || []);
+  const [selectedModifiers, setSelectedModifiers] = useState<{
+    id: string;
+    inventory_item: {
+      id: string;
+      name: string;
+      cost_per_unit: number;
+      unit: string;
+    };
+    quantity: number;
+  }[]>(item.selectedModifiers || []);
 
-  const handleModifierToggle = (modifier: {id: string, name: string, price: number}) => {
+  const handleModifierToggle = (modifier: {
+    id: string;
+    inventory_item: {
+      id: string;
+      name: string;
+      cost_per_unit: number;
+      unit: string;
+    };
+    quantity: number;
+  }) => {
     setSelectedModifiers(prev => 
       prev.find(m => m.id === modifier.id)
         ? prev.filter(m => m.id !== modifier.id)
@@ -48,7 +85,7 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
     onClose();
   };
 
-  const totalModifierCost = selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+  const totalModifierCost = selectedModifiers.reduce((sum, mod) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -82,10 +119,10 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
                       htmlFor={modifier.id}
                       className="text-sm text-foreground cursor-pointer"
                     >
-                      {modifier.name}
+                      {modifier.inventory_item.name} x{modifier.quantity} {modifier.inventory_item.unit}
                     </label>
                   </div>
-                  <span className="text-sm text-muted-foreground">+${modifier.price.toFixed(2)}</span>
+                  <span className="text-sm text-muted-foreground">+${(modifier.inventory_item.cost_per_unit * modifier.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -99,7 +136,7 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
                 <div className="flex flex-wrap gap-2">
                   {selectedModifiers.map((modifier) => (
                     <Badge key={modifier.id} variant="secondary" className="text-xs">
-                      {modifier.name} (+${modifier.price.toFixed(2)})
+                      {modifier.inventory_item.name} x{modifier.quantity} (+${(modifier.inventory_item.cost_per_unit * modifier.quantity).toFixed(2)})
                     </Badge>
                   ))}
                 </div>
