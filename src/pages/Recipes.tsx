@@ -84,13 +84,33 @@ const Recipes = () => {
         .from('recipes')
         .select(`
           *,
-          recipe_modifiers(*)
+          recipe_modifiers(*),
+          recipe_ingredients(
+            quantity,
+            inventory_items(
+              name,
+              unit
+            )
+          )
         `)
         .eq('is_active', true)
         .order('name');
 
       if (error) throw error;
-      setRecipes(data || []);
+      
+      // Transform the data to match the frontend interface
+      const transformedRecipes = (data || []).map(recipe => ({
+        ...recipe,
+        basePrice: Number(recipe.base_price),
+        prepTime: recipe.prep_time || 0,
+        ingredients: recipe.recipe_ingredients?.map(ri => ({
+          name: ri.inventory_items?.name || 'Unknown',
+          quantity: Number(ri.quantity),
+          unit: ri.inventory_items?.unit || 'unit'
+        })) || []
+      }));
+      
+      setRecipes(transformedRecipes);
     } catch (error) {
       console.error('Error loading recipes:', error);
       toast({

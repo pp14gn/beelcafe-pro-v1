@@ -317,6 +317,20 @@ const POS = () => {
         console.error('Order creation error:', orderError);
       }
 
+      // Update inventory based on recipe ingredients
+      try {
+        const { error: inventoryError } = await supabase.functions.invoke('process-sale-inventory', {
+          body: { items: cart }
+        });
+
+        if (inventoryError) {
+          console.error('Inventory update error:', inventoryError);
+          // Don't fail the sale if inventory update fails, just log it
+        }
+      } catch (inventoryError) {
+        console.error('Inventory update error:', inventoryError);
+      }
+
       toast({
         title: "Sale Completed",
         description: `${paymentMethod === 'cash' ? 'Cash' : 'Card'} payment of $${total.toFixed(2)} processed successfully.`,
