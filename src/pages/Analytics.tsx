@@ -29,37 +29,100 @@ import {
   Timer
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Analytics = () => {
   const [orderTimes, setOrderTimes] = useState<any[]>([]);
   const [averagePrepTime, setAveragePrepTime] = useState(0);
-
-  const salesData = [
-    { id: "1", item: "Latte", quantity: 45, revenue: 202.50, staff: "Sarah W.", time: "08:30", date: "2024-01-16" },
-    { id: "2", item: "Americano", quantity: 32, revenue: 96.00, staff: "Mike J.", time: "09:15", date: "2024-01-16" },
-    { id: "3", item: "Cappuccino", quantity: 28, revenue: 112.00, staff: "Emily C.", time: "07:45", date: "2024-01-16" },
-    { id: "4", item: "Breakfast Sandwich", quantity: 18, revenue: 130.50, staff: "Sarah W.", time: "08:00", date: "2024-01-16" },
-    { id: "5", item: "Espresso", quantity: 55, revenue: 137.50, staff: "John D.", time: "09:30", date: "2024-01-16" },
-  ];
-
-  const staffPerformance = [
-    { name: "Sarah Wilson", sales: 8920.50, orders: 342, hours: 140, avgPerHour: 63.72 },
-    { name: "John Doe", sales: 12450.00, orders: 456, hours: 160, avgPerHour: 77.81 },
-    { name: "Mike Johnson", sales: 7650.25, orders: 298, hours: 135, avgPerHour: 56.67 },
-    { name: "Emily Chen", sales: 9850.75, orders: 387, hours: 150, avgPerHour: 65.67 },
-  ];
-
-  const topItems = [
-    { name: "Latte", sold: 234, revenue: 1053.00 },
-    { name: "Americano", sold: 198, revenue: 594.00 },
-    { name: "Cappuccino", sold: 156, revenue: 624.00 },
-    { name: "Espresso", sold: 189, revenue: 472.50 },
-    { name: "Breakfast Sandwich", sold: 87, revenue: 630.75 },
-  ];
+  const [salesData, setSalesData] = useState<any[]>([]);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [avgOrderValue, setAvgOrderValue] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    loadOrderAnalytics();
+    loadAnalytics();
   }, []);
+
+  const loadAnalytics = async () => {
+    try {
+      await Promise.all([
+        loadOrderAnalytics(),
+        loadSalesData(),
+        loadDashboardMetrics()
+      ]);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to load analytics data.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDashboardMetrics = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Get today's sales
+      const { data: salesData, error: salesError } = await supabase
+        .from('sales')
+        .select('total_amount')
+        .gte('created_at', `${today}T00:00:00.000Z`)
+        .lte('created_at', `${today}T23:59:59.999Z`);
+
+      if (salesError) throw salesError;
+
+      const revenue = salesData?.reduce((sum, sale) => sum + parseFloat(sale.total_amount.toString()), 0) || 0;
+      const orderCount = salesData?.length || 0;
+      
+      setTotalRevenue(revenue);
+      setTotalOrders(orderCount);
+      setAvgOrderValue(orderCount > 0 ? revenue / orderCount : 0);
+    } catch (error) {
+      console.error('Error loading dashboard metrics:', error);
+    }
+  };
+
+  const loadSalesData = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          users!inner(full_name)
+        `)
+        .gte('created_at', `${today}T00:00:00.000Z`)
+        .lte('created_at', `${today}T23:59:59.999Z`)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      
+      const formattedData = (data || []).map(sale => ({
+        id: sale.id,
+        items: sale.items,
+        total_amount: sale.total_amount,
+        payment_method: sale.payment_method,
+        staff: sale.users?.full_name || 'Unknown',
+        time: new Date(sale.created_at).toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
+        created_at: sale.created_at
+      }));
+      
+      setSalesData(formattedData);
+    } catch (error) {
+      console.error('Error loading sales data:', error);
+    }
+  };
 
   const loadOrderAnalytics = async () => {
     try {
@@ -90,6 +153,14 @@ const Analytics = () => {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="text-center">Loading analytics...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -127,10 +198,10 @@ const Analytics = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="text-2xl font-bold text-coffee-gold">$2,847</p>
+              <p className="text-2xl font-bold text-coffee-gold">${totalRevenue.toFixed(2)}</p>
               <p className="text-xs text-pos-success flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" />
-                +12.5% vs yesterday
+                Today's total
               </p>
             </div>
           </div>
@@ -143,10 +214,10 @@ const Analytics = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Orders</p>
-              <p className="text-2xl font-bold text-pos-info">178</p>
+              <p className="text-2xl font-bold text-pos-info">{totalOrders}</p>
               <p className="text-xs text-pos-success flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" />
-                +8.2% vs yesterday
+                Today's total
               </p>
             </div>
           </div>
@@ -159,10 +230,10 @@ const Analytics = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Avg Order Value</p>
-              <p className="text-2xl font-bold text-coffee-bean">$16.00</p>
+              <p className="text-2xl font-bold text-coffee-bean">${avgOrderValue.toFixed(2)}</p>
               <p className="text-xs text-pos-success flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" />
-                +3.8% vs yesterday
+                Today's average
               </p>
             </div>
           </div>
@@ -188,7 +259,7 @@ const Analytics = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Selling Items */}
+        {/* Top Selling Items - Placeholder */}
         <Card>
           <div className="p-4 border-b border-border">
             <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -197,32 +268,14 @@ const Analytics = () => {
             </h3>
           </div>
           <div className="p-4">
-            <div className="space-y-3">
-              {topItems.map((item, index) => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-coffee-gold/10">
-                      <span className="text-sm font-semibold text-coffee-gold">
-                        #{index + 1}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">{item.sold} sold</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-coffee-gold">
-                      ${item.revenue.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="text-center text-muted-foreground py-8">
+              <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Analytics coming soon</p>
             </div>
           </div>
         </Card>
 
-        {/* Staff Performance */}
+        {/* Staff Performance - Placeholder */}
         <Card>
           <div className="p-4 border-b border-border">
             <h3 className="font-semibold text-foreground flex items-center gap-2">
@@ -231,32 +284,9 @@ const Analytics = () => {
             </h3>
           </div>
           <div className="p-4">
-            <div className="space-y-3">
-              {staffPerformance.map((staff, index) => (
-                <div key={staff.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-coffee-cream flex items-center justify-center">
-                      <span className="text-sm font-semibold text-coffee-bean">
-                        {staff.name.split(' ').map(n => n[0]).join('')}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium">{staff.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {staff.orders} orders • {staff.hours}h
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-coffee-gold">
-                      ${staff.sales.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      ${staff.avgPerHour.toFixed(2)}/hr
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="text-center text-muted-foreground py-8">
+              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Analytics coming soon</p>
             </div>
           </div>
         </Card>
@@ -281,12 +311,22 @@ const Analytics = () => {
             <TableBody>
               {salesData.slice(0, 5).map((sale) => (
                 <TableRow key={sale.id}>
-                  <TableCell className="font-medium">{sale.item}</TableCell>
+                  <TableCell className="font-medium">
+                    {Array.isArray(sale.items) ? 
+                      sale.items.map((item: any) => item.name || 'Unknown Item').join(', ') : 
+                      'Multiple Items'
+                    }
+                  </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{sale.quantity}</Badge>
+                    <Badge variant="outline">
+                      {Array.isArray(sale.items) ? 
+                        sale.items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) : 
+                        1
+                      }
+                    </Badge>
                   </TableCell>
                   <TableCell className="font-semibold text-coffee-gold">
-                    ${sale.revenue.toFixed(2)}
+                    ${parseFloat(sale.total_amount).toFixed(2)}
                   </TableCell>
                   <TableCell>{sale.staff}</TableCell>
                   <TableCell className="text-muted-foreground">{sale.time}</TableCell>

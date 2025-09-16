@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import AddRecipeDialog from "@/components/AddRecipeDialog";
+import EditRecipeDialog from "@/components/EditRecipeDialog";
 import { 
   ChefHat, 
   Plus, 
@@ -24,6 +35,8 @@ import {
   Edit,
   Trash2
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Ingredient {
   name: string;
@@ -53,93 +66,85 @@ interface Recipe {
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [recipes, setRecipes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const recipes: Recipe[] = [
-    {
-      id: "1",
-      name: "Classic Latte",
-      category: "coffee",
-      description: "Rich espresso with steamed milk and light foam",
-      basePrice: 4.50,
-      prepTime: 3,
-      servings: 1,
-      ingredients: [
-        { name: "Espresso Shot", quantity: 2, unit: "shots" },
-        { name: "Whole Milk", quantity: 6, unit: "oz" },
-        { name: "Milk Foam", quantity: 1, unit: "oz" }
-      ],
-      modifiers: [
-        { name: "Extra Shot", price: 0.75, ingredients: [{ name: "Espresso Shot", quantity: 1, unit: "shot" }] },
-        { name: "Oat Milk", price: 0.60, ingredients: [{ name: "Oat Milk", quantity: 6, unit: "oz" }] },
-        { name: "Vanilla Syrup", price: 0.50, ingredients: [{ name: "Vanilla Syrup", quantity: 0.5, unit: "oz" }] },
-        { name: "Decaf", price: 0.00 }
-      ],
-      instructions: [
-        "Grind coffee beans to fine consistency",
-        "Pull 2 shots of espresso into cup",
-        "Steam milk to 150-160°F with microfoam",
-        "Pour steamed milk into espresso",
-        "Top with light layer of foam",
-        "Serve immediately"
-      ]
-    },
-    {
-      id: "2",
-      name: "Cappuccino",
-      category: "coffee",
-      description: "Equal parts espresso, steamed milk, and foam",
-      basePrice: 4.00,
-      prepTime: 4,
-      servings: 1,
-      ingredients: [
-        { name: "Espresso Shot", quantity: 2, unit: "shots" },
-        { name: "Whole Milk", quantity: 4, unit: "oz" },
-        { name: "Milk Foam", quantity: 2, unit: "oz" }
-      ],
-      modifiers: [
-        { name: "Extra Shot", price: 0.75 },
-        { name: "Decaf", price: 0.00 },
-        { name: "Extra Foam", price: 0.00 },
-        { name: "Cinnamon", price: 0.25 }
-      ],
-      instructions: [
-        "Pull 2 shots of espresso",
-        "Steam milk with extra foam",
-        "Pour equal parts steamed milk and foam",
-        "Dust with cinnamon if requested"
-      ]
-    },
-    {
-      id: "3",
-      name: "Breakfast Sandwich", 
-      category: "food",
-      description: "Egg, cheese, and choice of meat on toasted bagel",
-      basePrice: 7.25,
-      prepTime: 6,
-      servings: 1,
-      ingredients: [
-        { name: "Everything Bagel", quantity: 1, unit: "piece" },
-        { name: "Scrambled Eggs", quantity: 2, unit: "eggs" },
-        { name: "Cheddar Cheese", quantity: 1, unit: "slice" },
-        { name: "Turkey Sausage", quantity: 1, unit: "patty" }
-      ],
-      modifiers: [
-        { name: "Bacon", price: 1.00, ingredients: [{ name: "Bacon", quantity: 2, unit: "strips" }] },
-        { name: "Ham", price: 0.75, ingredients: [{ name: "Ham", quantity: 1, unit: "slice" }] },
-        { name: "Avocado", price: 1.25, ingredients: [{ name: "Avocado", quantity: 0.25, unit: "piece" }] },
-        { name: "No Cheese", price: -0.50 }
-      ],
-      instructions: [
-        "Toast bagel halves until golden",
-        "Scramble eggs with salt and pepper",
-        "Cook meat patty/strips until done",
-        "Assemble sandwich with cheese",
-        "Serve hot"
-      ]
+  useEffect(() => {
+    loadRecipes();
+  }, []);
+
+  const loadRecipes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('recipes')
+        .select(`
+          *,
+          recipe_modifiers(*)
+        `)
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      setRecipes(data || []);
+    } catch (error) {
+      console.error('Error loading recipes:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load recipes.",
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleEdit = (recipe: any) => {
+    setSelectedRecipe(recipe);
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = (recipe: any) => {
+    setSelectedRecipe(recipe);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedRecipe) return;
+
+    try {
+      const { error } = await supabase
+        .from('recipes')
+        .update({ is_active: false })
+        .eq('id', selectedRecipe.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Recipe deleted successfully.",
+      });
+
+      loadRecipes();
+      setDeleteDialogOpen(false);
+      setSelectedRecipe(null);
+    } catch (error) {
+      console.error('Error deleting recipe:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete recipe.",
+      });
+    }
+  };
+
+  const handleDialogSuccess = () => {
+    loadRecipes();
+  };
 
   const categories = [
     { id: "all", name: "All Recipes" },
@@ -150,10 +155,18 @@ const Recipes = () => {
 
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         recipe.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         (recipe.description || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all" || recipe.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="text-center">Loading recipes...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -280,17 +293,17 @@ const Recipes = () => {
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-medium text-muted-foreground">Modifiers:</span>
-                    <Badge variant="secondary">{recipe.modifiers.length}</Badge>
+                    <Badge variant="secondary">{recipe.recipe_modifiers?.length || 0}</Badge>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {recipe.modifiers.slice(0, 3).map((modifier, index) => (
+                    {(recipe.recipe_modifiers || []).slice(0, 3).map((modifier: any, index: number) => (
                       <Badge key={index} variant="outline" className="text-xs">
                         {modifier.name}
                       </Badge>
                     ))}
-                    {recipe.modifiers.length > 3 && (
+                    {(recipe.recipe_modifiers?.length || 0) > 3 && (
                       <Badge variant="outline" className="text-xs">
-                        +{recipe.modifiers.length - 3} more
+                        +{(recipe.recipe_modifiers?.length || 0) - 3} more
                       </Badge>
                     )}
                   </div>
@@ -352,51 +365,60 @@ const Recipes = () => {
 
                         <div>
                           <h4 className="font-semibold mb-3">Available Modifiers</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {selectedRecipe.modifiers.map((modifier, index) => (
-                              <div key={index} className="border border-border rounded-lg p-3">
-                                <div className="flex justify-between items-start mb-2">
-                                  <span className="font-medium">{modifier.name}</span>
-                                  <span className="text-coffee-gold font-semibold">
-                                    {modifier.price > 0 ? `+$${modifier.price.toFixed(2)}` : 
-                                     modifier.price < 0 ? `-$${Math.abs(modifier.price).toFixed(2)}` : 
-                                     'Free'}
-                                  </span>
-                                </div>
-                                {modifier.ingredients && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {modifier.ingredients.map(ing => 
-                                      `${ing.quantity} ${ing.unit} ${ing.name}`
-                                    ).join(', ')}
+                          {selectedRecipe?.recipe_modifiers?.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {selectedRecipe.recipe_modifiers.map((modifier: any, index: number) => (
+                                <div key={index} className="border border-border rounded-lg p-3">
+                                  <div className="flex justify-between items-start mb-2">
+                                    <span className="font-medium">{modifier.name}</span>
+                                    <span className="text-coffee-gold font-semibold">
+                                      {modifier.price > 0 ? `+$${modifier.price.toFixed(2)}` : 
+                                       modifier.price < 0 ? `-$${Math.abs(modifier.price).toFixed(2)}` : 
+                                       'Free'}
+                                    </span>
                                   </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-muted-foreground">No modifiers available</p>
+                          )}
                         </div>
 
                         <div>
                           <h4 className="font-semibold mb-3">Instructions</h4>
-                          <div className="space-y-2">
-                            {selectedRecipe.instructions.map((instruction, index) => (
-                              <div key={index} className="flex gap-3">
-                                <span className="flex-shrink-0 w-6 h-6 bg-coffee-gold/20 text-coffee-gold rounded-full flex items-center justify-center text-sm font-semibold">
-                                  {index + 1}
-                                </span>
-                                <span className="text-sm">{instruction}</span>
-                              </div>
-                            ))}
-                          </div>
+                          {selectedRecipe?.instructions && Array.isArray(selectedRecipe.instructions) ? (
+                            <div className="space-y-2">
+                              {selectedRecipe.instructions.map((instruction: string, index: number) => (
+                                <div key={index} className="flex gap-3">
+                                  <span className="flex-shrink-0 w-6 h-6 bg-coffee-gold/20 text-coffee-gold rounded-full flex items-center justify-center text-sm font-semibold">
+                                    {index + 1}
+                                  </span>
+                                  <span className="text-sm">{instruction}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-muted-foreground">No instructions available</p>
+                          )}
                         </div>
                       </div>
                     )}
                   </DialogContent>
                 </Dialog>
                 
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleEdit(recipe)}
+                >
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleDelete(recipe)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -409,11 +431,32 @@ const Recipes = () => {
       <AddRecipeDialog
         isOpen={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
-        onSuccess={() => {
-          // You could reload recipes data here
-          console.log('Recipe added successfully');
-        }}
+        onSuccess={handleDialogSuccess}
       />
+
+      {/* Edit Recipe Dialog */}
+      <EditRecipeDialog
+        isOpen={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        onSuccess={handleDialogSuccess}
+        recipe={selectedRecipe}
+      />
+
+      {/* Delete Recipe Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Recipe</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{selectedRecipe?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

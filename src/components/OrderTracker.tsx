@@ -232,8 +232,8 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="active" className="flex-1 min-h-0 m-0">
-          <ScrollArea className="h-full p-4">
+        <TabsContent value="active" className="flex-1 min-h-0 m-0 px-4">
+          <ScrollArea className="h-full">
             {activeOrders.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -249,8 +249,8 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
           </ScrollArea>
         </TabsContent>
         
-        <TabsContent value="completed" className="flex-1 min-h-0 m-0">
-          <ScrollArea className="h-full p-4">
+        <TabsContent value="completed" className="flex-1 min-h-0 m-0 px-4">
+          <ScrollArea className="h-full">
             {completedOrders.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />

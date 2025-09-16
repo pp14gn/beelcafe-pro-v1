@@ -118,31 +118,6 @@ const LoginForm = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCreateAdmin}
-              disabled={creatingAdmin}
-              className="w-full mb-4 gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10"
-            >
-              {creatingAdmin ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Setting Up Admin...
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-4 w-4" />
-                  Enable Admin Login
-                </>
-              )}
-            </Button>
-            <p className="text-xs text-muted-foreground text-center">
-              Click above to enable admin login (username: admin, password: admin)
-            </p>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="emailOrUsername" className="text-foreground">Email or Username</Label>

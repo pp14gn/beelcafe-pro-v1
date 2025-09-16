@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import AddInventoryDialog from "@/components/AddInventoryDialog";
+import EditInventoryDialog from "@/components/EditInventoryDialog";
+import RestockDialog from "@/components/RestockDialog";
 import { 
   Table,
   TableBody,
@@ -19,8 +21,12 @@ import {
   AlertTriangle,
   TrendingDown,
   TrendingUp,
-  Filter
+  Filter,
+  Edit,
+  RefreshCw
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface InventoryItem {
   id: string;
@@ -38,64 +44,51 @@ const Inventory = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [restockDialogOpen, setRestockDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [inventoryData, setInventoryData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const inventoryData: InventoryItem[] = [
-    {
-      id: "1",
-      name: "Coffee Beans - Arabica",
-      category: "coffee",
-      currentStock: 25,
-      minStock: 10,
-      unit: "lbs",
-      costPerUnit: 12.50,
-      supplier: "Premium Coffee Co.",
-      lastRestocked: "2024-01-15"
-    },
-    {
-      id: "2",
-      name: "Milk - Whole",
-      category: "dairy",
-      currentStock: 8,
-      minStock: 15,
-      unit: "gallons",
-      costPerUnit: 4.25,
-      supplier: "Local Dairy Farm",
-      lastRestocked: "2024-01-14"
-    },
-    {
-      id: "3",
-      name: "Sugar - White",
-      category: "sweeteners",
-      currentStock: 50,
-      minStock: 20,
-      unit: "lbs",
-      costPerUnit: 2.30,
-      supplier: "Bulk Supply Inc.",
-      lastRestocked: "2024-01-10"
-    },
-    {
-      id: "4",
-      name: "Paper Cups - 12oz",
-      category: "supplies",
-      currentStock: 250,
-      minStock: 500,
-      unit: "units",
-      costPerUnit: 0.15,
-      supplier: "Restaurant Supply Co.",
-      lastRestocked: "2024-01-12"
-    },
-    {
-      id: "5",
-      name: "Oat Milk",
-      category: "dairy",
-      currentStock: 12,
-      minStock: 8,
-      unit: "containers",
-      costPerUnit: 3.75,
-      supplier: "Plant Based Foods",
-      lastRestocked: "2024-01-16"
+  useEffect(() => {
+    loadInventory();
+  }, []);
+
+  const loadInventory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setInventoryData(data || []);
+    } catch (error) {
+      console.error('Error loading inventory:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load inventory data.",
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleEdit = (item: any) => {
+    setSelectedItem(item);
+    setEditDialogOpen(true);
+  };
+
+  const handleRestock = (item: any) => {
+    setSelectedItem(item);
+    setRestockDialogOpen(true);
+  };
+
+  const handleDialogSuccess = () => {
+    loadInventory();
+  };
 
   const categories = [
     { id: "all", name: "All Items" },
@@ -124,13 +117,21 @@ const Inventory = () => {
 
   const filteredItems = inventoryData.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+                         (item.supplier || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const criticalItems = inventoryData.filter(item => getStockStatus(item.currentStock, item.minStock) === "critical");
-  const lowStockItems = inventoryData.filter(item => getStockStatus(item.currentStock, item.minStock) === "low");
+  const criticalItems = inventoryData.filter(item => getStockStatus(item.current_stock, item.min_stock) === "critical");
+  const lowStockItems = inventoryData.filter(item => getStockStatus(item.current_stock, item.min_stock) === "low");
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="text-center">Loading inventory...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
@@ -234,7 +235,7 @@ const Inventory = () => {
         <div className="block sm:hidden">
           <div className="p-4 space-y-4">
             {filteredItems.map((item) => {
-              const status = getStockStatus(item.currentStock, item.minStock);
+              const status = getStockStatus(item.current_stock, item.min_stock);
               
               return (
                 <Card key={item.id} className="p-4">
@@ -251,28 +252,40 @@ const Inventory = () => {
                       <div>
                         <span className="text-muted-foreground">Current Stock:</span>
                         <p className={status === "critical" ? "text-destructive font-semibold" : ""}>
-                          {item.currentStock} {item.unit}
+                          {item.current_stock} {item.unit}
                         </p>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Min Stock:</span>
-                        <p>{item.minStock} {item.unit}</p>
+                        <p>{item.min_stock} {item.unit}</p>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Cost/Unit:</span>
-                        <p>${item.costPerUnit.toFixed(2)}</p>
+                        <p>${item.cost_per_unit?.toFixed(2) || '0.00'}</p>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Supplier:</span>
-                        <p className="truncate">{item.supplier}</p>
+                        <p className="truncate">{item.supplier || 'N/A'}</p>
                       </div>
                     </div>
                     
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => handleEdit(item)}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
                         Edit
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => handleRestock(item)}
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" />
                         Restock
                       </Button>
                     </div>
@@ -301,7 +314,7 @@ const Inventory = () => {
             </TableHeader>
             <TableBody>
               {filteredItems.map((item) => {
-                const status = getStockStatus(item.currentStock, item.minStock);
+                const status = getStockStatus(item.current_stock, item.min_stock);
                 
                 return (
                   <TableRow key={item.id}>
@@ -309,20 +322,30 @@ const Inventory = () => {
                     <TableCell className="capitalize">{item.category}</TableCell>
                     <TableCell>
                       <span className={status === "critical" ? "text-destructive font-semibold" : ""}>
-                        {item.currentStock} {item.unit}
+                        {item.current_stock} {item.unit}
                       </span>
                     </TableCell>
-                    <TableCell>{item.minStock} {item.unit}</TableCell>
+                    <TableCell>{item.min_stock} {item.unit}</TableCell>
                     <TableCell>{getStatusBadge(status)}</TableCell>
-                    <TableCell>${item.costPerUnit.toFixed(2)}</TableCell>
-                    <TableCell>{item.supplier}</TableCell>
-                    <TableCell>{item.lastRestocked}</TableCell>
+                    <TableCell>${item.cost_per_unit?.toFixed(2) || '0.00'}</TableCell>
+                    <TableCell>{item.supplier || 'N/A'}</TableCell>
+                    <TableCell>{item.last_restocked ? new Date(item.last_restocked).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEdit(item)}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
                           Edit
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleRestock(item)}
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
                           Restock
                         </Button>
                       </div>
@@ -339,10 +362,23 @@ const Inventory = () => {
       <AddInventoryDialog
         isOpen={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
-        onSuccess={() => {
-          // You could reload inventory data here
-          console.log('Inventory item added successfully');
-        }}
+        onSuccess={handleDialogSuccess}
+      />
+
+      {/* Edit Inventory Dialog */}
+      <EditInventoryDialog
+        isOpen={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        onSuccess={handleDialogSuccess}
+        item={selectedItem}
+      />
+
+      {/* Restock Dialog */}
+      <RestockDialog
+        isOpen={restockDialogOpen}
+        onClose={() => setRestockDialogOpen(false)}
+        onSuccess={handleDialogSuccess}
+        item={selectedItem}
       />
     </div>
   );
