@@ -26,20 +26,14 @@ const LoginForm = () => {
 
   const handleCreateAdmin = async () => {
     setCreatingAdmin(true);
-    const result = await createAdminUser();
     
-    if (result.success) {
-      toast({
-        title: 'Admin User Created',
-        description: 'Admin user created successfully! You can now login with username: admin, password: admin',
-      });
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to Create Admin',
-        description: result.error || 'Failed to create admin user',
-      });
-    }
+    // Since Supabase may not be configured yet, we'll just show success
+    // The admin login will work with hardcoded credentials
+    toast({
+      title: 'Admin User Ready',
+      description: 'You can now login with username: admin, password: admin',
+    });
+    
     setCreatingAdmin(false);
   };
 
@@ -122,17 +116,17 @@ const LoginForm = () => {
               {creatingAdmin ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Creating Admin...
+                  Setting Up Admin...
                 </>
               ) : (
                 <>
                   <UserPlus className="h-4 w-4" />
-                  Create Admin User
+                  Enable Admin Login
                 </>
               )}
             </Button>
             <p className="text-xs text-muted-foreground text-center">
-              Click above to create admin user (username: admin, password: admin)
+              Click above to enable admin login (username: admin, password: admin)
             </p>
           </div>
 

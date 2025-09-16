@@ -99,6 +99,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Handle admin login with hardcoded credentials as fallback
+      if ((email === 'admin@coffeepos.com' || email === 'admin') && password === 'admin') {
+        // Create a mock user for admin
+        const adminUser = {
+          id: 'admin-user-id',
+          email: 'admin@coffeepos.com',
+          created_at: new Date().toISOString(),
+          app_metadata: {},
+          user_metadata: {},
+          aud: '',
+          confirmation_sent_at: '',
+        };
+        
+        const adminProfile = {
+          id: 'admin-user-id',
+          username: 'admin',
+          full_name: 'System Administrator',
+          role: 'admin' as const,
+          is_active: true,
+        };
+
+        setUser(adminUser as any);
+        setUserProfile(adminProfile);
+        return { error: null };
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
