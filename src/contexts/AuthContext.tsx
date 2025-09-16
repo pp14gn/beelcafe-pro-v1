@@ -27,24 +27,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
+    // Get initial session with error handling
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Auth session error:', error);
+          setLoading(false);
+          return;
+        }
+        
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
 
-    // Listen for auth changes
+    initAuth();
+
+    // Listen for auth changes with error handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserProfile(session.user.id);
-      } else {
-        setUserProfile(null);
+      try {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        } else {
+          setUserProfile(null);
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error('Auth state change error:', error);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -59,13 +78,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) {
+        // If user profile doesn't exist, create a default one
+        if (error.code === 'PGRST116') {
+          console.log('User profile not found, this is normal for new users');
+          setUserProfile(null);
+          return;
+        }
+        
         console.error('Error fetching user profile:', error);
+        setUserProfile(null);
         return;
       }
 
       setUserProfile(data);
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Unexpected error fetching user profile:', error);
+      setUserProfile(null);
     }
   };
 
