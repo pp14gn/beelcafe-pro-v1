@@ -19,7 +19,7 @@ const Sidebar = () => {
   const { userProfile, signOut } = useAuth();
 
   const navItems = [
-    { to: "/", icon: ShoppingCart, label: "POS System", primary: true },
+    { to: "/pos", icon: ShoppingCart, label: "POS System", primary: true },
     { to: "/inventory", icon: Package, label: "Inventory", requiredRole: "manager" },
     { to: "/recipes", icon: ChefHat, label: "Recipes", requiredRole: "manager" },
     { to: "/staff", icon: Users, label: "Staff", requiredRole: "manager" },
