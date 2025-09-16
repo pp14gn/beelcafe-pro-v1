@@ -25,6 +25,7 @@ interface Order {
   completion_time: string | null;
   prep_time_seconds: number | null;
   created_at: string;
+  customer_name: string | null;
 }
 
 interface OrderTrackerProps {
@@ -53,7 +54,7 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*, prep_time_seconds')
+        .select('*, prep_time_seconds, customer_name')
         .eq('shift_id', currentShift.id)
         .order('created_at', { ascending: false });
 
@@ -161,7 +162,12 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Coffee className="h-4 w-4 text-coffee-bean" />
-          <span className="font-medium">Order #{order.id.slice(-6)}</span>
+          <div className="flex flex-col">
+            <span className="font-medium">Order #{order.id.slice(-6)}</span>
+            {order.customer_name && (
+              <span className="text-sm text-muted-foreground">{order.customer_name}</span>
+            )}
+          </div>
           {getStatusBadge(order.status)}
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
