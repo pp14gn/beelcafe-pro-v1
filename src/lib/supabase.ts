@@ -63,6 +63,32 @@ export type Database = {
           created_at?: string
         }
       }
+      cash_outs: {
+        Row: {
+          id: string
+          user_id: string
+          amount: number
+          remaining_cash: number
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          amount: number
+          remaining_cash: number
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          amount?: number
+          remaining_cash?: number
+          notes?: string | null
+          created_at?: string
+        }
+      }
     }
   }
 }

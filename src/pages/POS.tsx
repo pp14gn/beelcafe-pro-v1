@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,10 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ModifierDialog from "@/components/ModifierDialog";
+import CashOutDialog from "@/components/CashOutDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Coffee, 
   Plus, 
@@ -13,7 +17,8 @@ import {
   Trash2, 
   CreditCard,
   DollarSign,
-  Settings
+  Settings,
+  Calculator
 } from "lucide-react";
 
 interface MenuItem {
@@ -33,7 +38,11 @@ const POS = () => {
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("coffee");
   const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false);
+  const [cashOutDialogOpen, setCashOutDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<OrderItem | null>(null);
+  const [currentCashTotal, setCurrentCashTotal] = useState(0);
+  const { user, userProfile } = useAuth();
+  const { toast } = useToast();
 
   const menuItems: MenuItem[] = [
     { id: "1", name: "Espresso", price: 2.50, category: "coffee" },
@@ -101,12 +110,124 @@ const POS = () => {
 
   const filteredItems = menuItems.filter(item => item.category === selectedCategory);
 
+  useEffect(() => {
+    // Load current cash total from today's cash transactions
+    loadCurrentCashTotal();
+  }, [user]);
+
+  const loadCurrentCashTotal = async () => {
+    if (!user) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Get today's cash sales for this user
+      const { data: sales, error } = await supabase
+        .from('sales')
+        .select('total_amount')
+        .eq('user_id', user.id)
+        .eq('payment_method', 'cash')
+        .gte('created_at', `${today}T00:00:00.000Z`)
+        .lte('created_at', `${today}T23:59:59.999Z`);
+
+      if (error) {
+        console.error('Error loading cash total:', error);
+        return;
+      }
+
+      // Get today's cash outs for this user
+      const { data: cashOuts, error: cashOutError } = await supabase
+        .from('cash_outs')
+        .select('amount')
+        .eq('user_id', user.id)
+        .gte('created_at', `${today}T00:00:00.000Z`)
+        .lte('created_at', `${today}T23:59:59.999Z`);
+
+      if (cashOutError) {
+        console.error('Error loading cash outs:', cashOutError);
+        return;
+      }
+
+      const totalSales = sales?.reduce((sum, sale) => sum + sale.total_amount, 0) || 0;
+      const totalCashOuts = cashOuts?.reduce((sum, cashOut) => sum + cashOut.amount, 0) || 0;
+      
+      setCurrentCashTotal(Math.max(0, totalSales - totalCashOuts));
+    } catch (error) {
+      console.error('Error loading current cash total:', error);
+    }
+  };
+
+  const processSale = async (paymentMethod: 'cash' | 'card') => {
+    if (cart.length === 0 || !user) return;
+
+    try {
+      const total = getTotalPrice();
+      
+      // Record the sale
+      const { error } = await supabase
+        .from('sales')
+        .insert([
+          {
+            user_id: user.id,
+            items: cart,
+            total_amount: total,
+            payment_method: paymentMethod,
+          },
+        ]);
+
+      if (error) {
+        console.error('Sale recording error:', error);
+        toast({
+          variant: "destructive",
+          title: "Sale Failed",
+          description: "Failed to record the sale.",
+        });
+        return;
+      }
+
+      toast({
+        title: "Sale Completed",
+        description: `${paymentMethod === 'cash' ? 'Cash' : 'Card'} payment of $${total.toFixed(2)} processed successfully.`,
+      });
+
+      // Clear cart and update cash total if cash payment
+      setCart([]);
+      if (paymentMethod === 'cash') {
+        setCurrentCashTotal(prev => prev + total);
+      }
+    } catch (error) {
+      console.error('Unexpected error processing sale:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred.",
+      });
+    }
+  };
+
   return (
     <div className="flex h-screen bg-background">
       {/* Menu Section */}
       <div className="flex-1 p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Point of Sale</h1>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-2xl font-bold text-foreground">Point of Sale</h1>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Today's Cash</p>
+                <p className="text-lg font-bold text-coffee-gold">${currentCashTotal.toFixed(2)}</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setCashOutDialogOpen(true)}
+                className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10"
+                disabled={currentCashTotal <= 0}
+              >
+                <Calculator className="h-4 w-4" />
+                Cash Out
+              </Button>
+            </div>
+          </div>
           <p className="text-muted-foreground">Select items to add to the current order</p>
         </div>
 
@@ -246,12 +367,7 @@ const POS = () => {
               <Button 
                 variant="outline" 
                 className="gap-2"
-                onClick={() => {
-                  if (cart.length > 0) {
-                    console.log("Processing cash payment:", getTotalPrice());
-                    setCart([]);
-                  }
-                }}
+                onClick={() => processSale('cash')}
                 disabled={cart.length === 0}
               >
                 <DollarSign className="h-4 w-4" />
@@ -259,12 +375,7 @@ const POS = () => {
               </Button>
               <Button 
                 className="gap-2 bg-gradient-coffee hover:opacity-90"
-                onClick={() => {
-                  if (cart.length > 0) {
-                    console.log("Processing card payment:", getTotalPrice());
-                    setCart([]);
-                  }
-                }}
+                onClick={() => processSale('card')}
                 disabled={cart.length === 0}
               >
                 <CreditCard className="h-4 w-4" />
@@ -284,6 +395,13 @@ const POS = () => {
           onConfirm={updateCartItemModifiers}
         />
       )}
+
+      {/* Cash Out Dialog */}
+      <CashOutDialog
+        isOpen={cashOutDialogOpen}
+        onClose={() => setCashOutDialogOpen(false)}
+        currentCashTotal={currentCashTotal}
+      />
     </div>
   );
 };
