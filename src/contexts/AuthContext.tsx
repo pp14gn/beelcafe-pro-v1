@@ -80,28 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         // If user profile doesn't exist, create a default one
         if (error.code === 'PGRST116') {
-          // Check if this is the admin user and create admin profile
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user?.email === 'admin@beelcafe.com') {
-            const adminProfile = {
-              id: userId,
-              username: 'admin',
-              full_name: 'System Administrator',
-              role: 'admin' as const,
-              email: 'admin@beelcafe.com',
-              is_active: true,
-            };
-
-            const { error: insertError } = await supabase
-              .from('users')
-              .insert([adminProfile]);
-
-            if (!insertError) {
-              setUserProfile(adminProfile);
-              return;
-            }
-          }
-          
           console.log('User profile not found, this is normal for new users');
           setUserProfile(null);
           return;
@@ -121,25 +99,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Handle admin login with hardcoded credentials by creating a real Supabase user
+      // Handle admin login with hardcoded credentials as fallback
       if ((email === 'admin@coffeepos.com' || email === 'admin') && password === 'admin') {
-        try {
-          // Try to sign up the admin user first (in case it doesn't exist)
-          await supabase.auth.signUp({
-            email: 'admin@beelcafe.com',
-            password: 'admin123!',
-          });
-        } catch (error) {
-          // User might already exist, that's fine
-        }
-
-        // Sign in with the admin credentials
-        const { error } = await supabase.auth.signInWithPassword({
-          email: 'admin@beelcafe.com',
-          password: 'admin123!',
-        });
+        // Create a mock user for admin
+        const adminUser = {
+          id: 'admin-user-id',
+          email: 'admin@coffeepos.com',
+          created_at: new Date().toISOString(),
+          app_metadata: {},
+          user_metadata: {},
+          aud: '',
+          confirmation_sent_at: '',
+        };
         
-        return { error };
+        const adminProfile = {
+          id: 'admin-user-id',
+          username: 'admin',
+          full_name: 'System Administrator',
+          role: 'admin' as const,
+          is_active: true,
+        };
+
+        setUser(adminUser as any);
+        setUserProfile(adminProfile);
+        return { error: null };
       }
 
       const { error } = await supabase.auth.signInWithPassword({
