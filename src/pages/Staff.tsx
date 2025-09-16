@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { supabase } from "@/integrations/supabase/client";
 import AddStaffDialog from "@/components/AddStaffDialog";
 import { 
   Table,
@@ -41,80 +42,74 @@ const Staff = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [staffData, setStaffData] = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const staffData: StaffMember[] = [
-    {
-      id: "1",
-      name: "John Doe",
-      username: "john.doe",
-      role: "manager",
-      status: "active",
-      hoursWorked: 160,
-      totalSales: 12450.00,
-      lastLogin: "2024-01-16 09:30",
-      permissions: ["pos", "inventory", "staff", "reports"]
-    },
-    {
-      id: "2",
-      name: "Sarah Wilson",
-      username: "sarah.w", 
-      role: "barista",
-      status: "active",
-      hoursWorked: 140,
-      totalSales: 8920.50,
-      lastLogin: "2024-01-16 08:15",
-      permissions: ["pos", "inventory"]
-    },
-    {
-      id: "3",
-      name: "Mike Johnson",
-      username: "mike.j",
-      role: "barista",
-      status: "active", 
-      hoursWorked: 135,
-      totalSales: 7650.25,
-      lastLogin: "2024-01-15 16:45",
-      permissions: ["pos"]
-    },
-    {
-      id: "4",
-      name: "Emily Chen",
-      username: "emily.c",
-      role: "shift_lead",
-      status: "active",
-      hoursWorked: 150,
-      totalSales: 9850.75,
-      lastLogin: "2024-01-16 07:00",
-      permissions: ["pos", "inventory", "reports"]
-    },
-    {
-      id: "5",
-      name: "David Brown",
-      username: "david.b",
-      role: "barista",
-      status: "inactive",
-      hoursWorked: 0,
-      totalSales: 0,
-      lastLogin: "2024-01-10 14:20",
-      permissions: ["pos"]
+  useEffect(() => {
+    fetchStaffData();
+  }, []);
+
+  const fetchStaffData = async () => {
+    try {
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Map database users to StaffMember interface
+      const mappedStaff: StaffMember[] = users?.map(user => ({
+        id: user.id,
+        name: user.full_name,
+        username: user.username,
+        role: user.role,
+        status: user.is_active ? "active" : "inactive",
+        hoursWorked: 0, // TODO: Calculate from shifts table
+        totalSales: 0, // TODO: Calculate from sales table  
+        lastLogin: new Date(user.updated_at).toLocaleString(),
+        permissions: getPermissionsByRole(user.role)
+      })) || [];
+
+      setStaffData(mappedStaff);
+    } catch (error) {
+      console.error('Error fetching staff data:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const getPermissionsByRole = (role: string): string[] => {
+    switch (role) {
+      case 'admin':
+        return ['pos', 'inventory', 'staff', 'reports', 'settings'];
+      case 'manager':
+        return ['pos', 'inventory', 'staff', 'reports'];
+      case 'shift_lead':
+        return ['pos', 'inventory', 'reports'];
+      default:
+        return ['pos'];
+    }
+  };
 
   const roles = [
     { id: "all", name: "All Roles" },
+    { id: "admin", name: "Admin" },
     { id: "manager", name: "Manager" },
     { id: "shift_lead", name: "Shift Lead" },
-    { id: "barista", name: "Barista" }
+    { id: "cashier", name: "Cashier" }
   ];
 
   const getRoleBadge = (role: string) => {
     switch (role) {
+      case "admin":
+        return <Badge className="bg-red-500/20 text-red-600 border-red-500/30"><Shield className="h-3 w-3 mr-1" />Admin</Badge>;
       case "manager":
         return <Badge className="bg-coffee-gold/20 text-coffee-gold border-coffee-gold/30"><Shield className="h-3 w-3 mr-1" />Manager</Badge>;
       case "shift_lead":
         return <Badge variant="secondary" className="bg-coffee-bean/20 text-coffee-bean border-coffee-bean/30"><UserCheck className="h-3 w-3 mr-1" />Shift Lead</Badge>;
       default:
-        return <Badge variant="outline"><Users className="h-3 w-3 mr-1" />Barista</Badge>;
+        return <Badge variant="outline"><Users className="h-3 w-3 mr-1" />Cashier</Badge>;
     }
   };
 
@@ -234,12 +229,25 @@ const Staff = () => {
               <TableHead>Status</TableHead>
               <TableHead>Hours Worked</TableHead>
               <TableHead>Total Sales</TableHead>
-              <TableHead>Last Login</TableHead>
+              <TableHead>Last Updated</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredStaff.map((staff) => (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8">
+                  Loading staff members...
+                </TableCell>
+              </TableRow>
+            ) : filteredStaff.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  No staff members found
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredStaff.map((staff) => (
               <TableRow key={staff.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -279,7 +287,8 @@ const Staff = () => {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>
@@ -289,8 +298,7 @@ const Staff = () => {
         isOpen={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
         onSuccess={() => {
-          // You could reload staff data here
-          console.log('Staff member added successfully');
+          fetchStaffData(); // Reload staff data after adding
         }}
       />
     </div>
