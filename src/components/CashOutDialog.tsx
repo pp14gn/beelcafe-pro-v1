@@ -59,8 +59,7 @@ const CashOutDialog = ({ isOpen, onClose, currentCashTotal }: CashOutDialogProps
           {
             user_id: user.id,
             amount: parseFloat(cashOutAmount),
-            remaining_cash: 0, // Assuming full cash out
-            notes: `Cash out by ${userProfile.full_name || userProfile.username}`,
+            reason: `Cash out by ${userProfile.full_name || userProfile.username}`,
           },
         ]);
 
