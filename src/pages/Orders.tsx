@@ -35,15 +35,15 @@ const Orders = () => {
   };
 
   return (
-    <div className="h-screen bg-background pb-20 lg:pb-0">
-      <div className="p-4 lg:p-6 border-b border-border">
-        <h1 className="text-xl lg:text-2xl font-bold text-foreground">Open Orders</h1>
-        <p className="text-muted-foreground mt-1">
+    <div className="h-screen bg-background">
+      <div className="p-3 lg:p-4 border-b border-border">
+        <h1 className="text-lg lg:text-xl font-bold text-foreground">Open Orders</h1>
+        <p className="text-muted-foreground text-sm">
           {currentShift ? 'Track and manage active orders' : 'Start a shift to view orders'}
         </p>
       </div>
 
-      <div className="flex-1 h-[calc(100vh-120px)]">
+      <div className="h-[calc(100vh-80px)]">
         {currentShift ? (
           <OrderTracker currentShift={currentShift} />
         ) : (
