@@ -22,6 +22,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -47,6 +48,20 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Coffee shop specific colors
+        coffee: {
+          bean: "hsl(var(--coffee-bean))",
+          cream: "hsl(var(--coffee-cream))",
+          gold: "hsl(var(--coffee-gold))",
+          espresso: "hsl(var(--espresso))",
+          latte: "hsl(var(--latte))",
+        },
+        // POS specific colors
+        pos: {
+          success: "hsl(var(--pos-success))",
+          warning: "hsl(var(--pos-warning))",
+          info: "hsl(var(--pos-info))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -62,6 +77,16 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      backgroundImage: {
+        'gradient-coffee': 'var(--gradient-coffee)',
+        'gradient-cream': 'var(--gradient-cream)',
+        'gradient-gold': 'var(--gradient-gold)',
+      },
+      boxShadow: {
+        'coffee': 'var(--shadow-coffee)',
+        'elevated': 'var(--shadow-elevated)',
+        'pos': 'var(--shadow-pos)',
       },
       keyframes: {
         "accordion-down": {

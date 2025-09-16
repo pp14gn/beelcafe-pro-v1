@@ -8,35 +8,65 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Coffee Shop Color Palette */
+    --background: 35 20% 96%;
+    --foreground: 25 15% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 25 15% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 25 15% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Coffee-inspired primary colors */
+    --primary: 25 45% 25%;
+    --primary-foreground: 35 25% 95%;
+    --primary-hover: 25 45% 20%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Warm coffee secondary */
+    --secondary: 30 35% 85%;
+    --secondary-foreground: 25 45% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted coffee tones */
+    --muted: 35 15% 90%;
+    --muted-foreground: 25 10% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Espresso accent */
+    --accent: 20 25% 75%;
+    --accent-foreground: 25 45% 25%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Error states */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Borders and inputs */
+    --border: 30 20% 85%;
+    --input: 30 20% 90%;
+    --ring: 25 45% 35%;
 
-    --radius: 0.5rem;
+    /* Coffee shop specific colors */
+    --coffee-bean: 25 50% 15%;
+    --coffee-cream: 35 40% 90%;
+    --coffee-gold: 45 80% 60%;
+    --espresso: 20 30% 20%;
+    --latte: 35 25% 85%;
+
+    /* POS specific colors */
+    --pos-success: 120 60% 50%;
+    --pos-warning: 45 90% 60%;
+    --pos-info: 200 80% 60%;
+
+    /* Gradients */
+    --gradient-coffee: linear-gradient(135deg, hsl(var(--coffee-bean)), hsl(var(--espresso)));
+    --gradient-cream: linear-gradient(180deg, hsl(var(--coffee-cream)), hsl(var(--latte)));
+    --gradient-gold: linear-gradient(45deg, hsl(var(--coffee-gold)), hsl(45 70% 55%));
+
+    /* Shadows */
+    --shadow-coffee: 0 4px 20px hsl(var(--coffee-bean) / 0.15);
+    --shadow-elevated: 0 8px 30px hsl(var(--coffee-bean) / 0.12);
+    --shadow-pos: 0 2px 10px hsl(var(--espresso) / 0.1);
+
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 
