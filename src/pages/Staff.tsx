@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import AddStaffDialog from "@/components/AddStaffDialog";
+import EditStaffDialog from "@/components/EditStaffDialog";
+import ResetPasswordDialog from "@/components/ResetPasswordDialog";
 import { 
   Table,
   TableBody,
@@ -42,6 +44,9 @@ const Staff = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [staffData, setStaffData] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -77,6 +82,16 @@ const Staff = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEditStaff = (staff: StaffMember) => {
+    setSelectedStaff(staff);
+    setEditDialogOpen(true);
+  };
+
+  const handleResetPassword = (staff: StaffMember) => {
+    setSelectedStaff(staff);
+    setResetPasswordDialogOpen(true);
   };
 
   const getPermissionsByRole = (role: string): string[] => {
@@ -276,11 +291,21 @@ const Staff = () => {
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="gap-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1"
+                      onClick={() => handleEditStaff(staff)}
+                    >
                       <Edit className="h-3 w-3" />
                       Edit
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1"
+                      onClick={() => handleResetPassword(staff)}
+                    >
                       <Key className="h-3 w-3" />
                       Reset Password
                     </Button>
@@ -300,6 +325,29 @@ const Staff = () => {
         onSuccess={() => {
           fetchStaffData(); // Reload staff data after adding
         }}
+      />
+
+      {/* Edit Staff Dialog */}
+      <EditStaffDialog
+        isOpen={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setSelectedStaff(null);
+        }}
+        onSuccess={() => {
+          fetchStaffData(); // Reload staff data after editing
+        }}
+        staffMember={selectedStaff}
+      />
+
+      {/* Reset Password Dialog */}
+      <ResetPasswordDialog
+        isOpen={resetPasswordDialogOpen}
+        onClose={() => {
+          setResetPasswordDialogOpen(false);
+          setSelectedStaff(null);
+        }}
+        staffMember={selectedStaff}
       />
     </div>
   );
