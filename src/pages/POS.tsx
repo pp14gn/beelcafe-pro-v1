@@ -553,11 +553,11 @@ const POS = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="orders" className="h-[calc(100vh-140px)] m-0">
+          <TabsContent value="orders" className="m-0">
             {currentShift ? (
               <OrderTracker currentShift={currentShift} />
             ) : (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center min-h-[300px]">
                 <div className="text-center text-muted-foreground">
                   <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Start a shift to view orders</p>
