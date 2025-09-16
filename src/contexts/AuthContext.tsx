@@ -78,6 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      // Get current user for creating profile
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -87,9 +90,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         // If user profile doesn't exist, create a default one
         if (error.code === 'PGRST116') {
-          console.log('User profile not found, this is normal for new users');
-          setUserProfile(null);
-          return;
+          console.log('User profile not found, creating default profile for new user');
+          try {
+            const { error: createError } = await supabase
+              .from('users')
+              .insert([
+                {
+                  id: userId,
+                  username: currentUser?.email?.split('@')[0] || 'user',
+                  full_name: currentUser?.email || 'User',
+                  role: 'cashier',
+                  is_active: true,
+                },
+              ]);
+
+            if (createError) {
+              console.error('Error creating user profile:', createError);
+              setUserProfile(null);
+              return;
+            }
+
+            // Fetch the newly created profile
+            const { data: newProfile, error: fetchError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', userId)
+              .single();
+
+            if (fetchError) {
+              console.error('Error fetching new user profile:', fetchError);
+              setUserProfile(null);
+              return;
+            }
+
+            setUserProfile(newProfile as UserProfile);
+            return;
+          } catch (createError) {
+            console.error('Unexpected error creating user profile:', createError);
+            setUserProfile(null);
+            return;
+          }
         }
         
         console.error('Error fetching user profile:', error);
