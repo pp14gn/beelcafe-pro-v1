@@ -217,7 +217,7 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
   );
 
   return (
-    <div className="w-96 bg-card border-l border-border flex flex-col h-full">
+    <div className="flex-1 bg-card border-l border-border flex flex-col h-full">
       <div className="p-4 border-b border-border flex-shrink-0">
         <h2 className="text-lg font-bold text-foreground">Order Queue</h2>
       </div>
