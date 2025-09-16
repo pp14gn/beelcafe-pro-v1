@@ -18,38 +18,38 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 25 15% 15%;
 
-    /* Coffee-inspired primary colors */
-    --primary: 25 45% 25%;
-    --primary-foreground: 35 25% 95%;
-    --primary-hover: 25 45% 20%;
+    /* Golden primary colors */
+    --primary: 46 80% 61%;
+    --primary-foreground: 46 20% 15%;
+    --primary-hover: 46 80% 55%;
 
-    /* Warm coffee secondary */
-    --secondary: 30 35% 85%;
-    --secondary-foreground: 25 45% 25%;
+    /* Warm golden secondary */
+    --secondary: 46 40% 90%;
+    --secondary-foreground: 46 80% 35%;
 
-    /* Muted coffee tones */
-    --muted: 35 15% 90%;
-    --muted-foreground: 25 10% 45%;
+    /* Muted golden tones */
+    --muted: 46 25% 92%;
+    --muted-foreground: 46 30% 45%;
 
-    /* Espresso accent */
-    --accent: 20 25% 75%;
-    --accent-foreground: 25 45% 25%;
+    /* Golden accent */
+    --accent: 46 60% 80%;
+    --accent-foreground: 46 80% 35%;
 
     /* Error states */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
     /* Borders and inputs */
-    --border: 30 20% 85%;
-    --input: 30 20% 90%;
-    --ring: 25 45% 35%;
+    --border: 46 30% 85%;
+    --input: 46 30% 90%;
+    --ring: 46 80% 45%;
 
     /* Coffee shop specific colors */
-    --coffee-bean: 25 50% 15%;
-    --coffee-cream: 35 40% 90%;
-    --coffee-gold: 45 80% 60%;
-    --espresso: 20 30% 20%;
-    --latte: 35 25% 85%;
+    --coffee-bean: 46 70% 35%;
+    --coffee-cream: 46 40% 90%;
+    --coffee-gold: 46 80% 61%;
+    --espresso: 46 60% 40%;
+    --latte: 46 35% 85%;
 
     /* POS specific colors */
     --pos-success: 120 60% 50%;
@@ -59,7 +59,7 @@ All colors MUST be HSL.
     /* Gradients */
     --gradient-coffee: linear-gradient(135deg, hsl(var(--coffee-bean)), hsl(var(--espresso)));
     --gradient-cream: linear-gradient(180deg, hsl(var(--coffee-cream)), hsl(var(--latte)));
-    --gradient-gold: linear-gradient(45deg, hsl(var(--coffee-gold)), hsl(45 70% 55%));
+    --gradient-gold: linear-gradient(45deg, hsl(var(--coffee-gold)), hsl(46 70% 55%));
 
     /* Shadows */
     --shadow-coffee: 0 4px 20px hsl(var(--coffee-bean) / 0.15);
