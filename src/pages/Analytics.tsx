@@ -28,6 +28,15 @@ import {
   Calendar,
   Timer
 } from "lucide-react";
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,6 +44,8 @@ const Analytics = () => {
   const [orderTimes, setOrderTimes] = useState<any[]>([]);
   const [averagePrepTime, setAveragePrepTime] = useState(0);
   const [salesData, setSalesData] = useState<any[]>([]);
+  const [topItems, setTopItems] = useState<any[]>([]);
+  const [staffPerformance, setStaffPerformance] = useState<any[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [avgOrderValue, setAvgOrderValue] = useState(0);
@@ -50,7 +61,9 @@ const Analytics = () => {
       await Promise.all([
         loadOrderAnalytics(),
         loadSalesData(),
-        loadDashboardMetrics()
+        loadDashboardMetrics(),
+        loadTopItemsData(),
+        loadStaffPerformanceData()
       ]);
     } catch (error) {
       console.error('Error loading analytics:', error);
@@ -152,6 +165,78 @@ const Analytics = () => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const loadTopItemsData = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('sales')
+        .select('items')
+        .gte('created_at', `${today}T00:00:00.000Z`)
+        .lte('created_at', `${today}T23:59:59.999Z`);
+
+      if (error) throw error;
+
+      // Process items data to count quantities
+      const itemCounts: { [key: string]: number } = {};
+      
+      data?.forEach(sale => {
+        if (Array.isArray(sale.items)) {
+          sale.items.forEach((item: any) => {
+            const itemName = item.name || 'Unknown Item';
+            const quantity = item.quantity || 1;
+            itemCounts[itemName] = (itemCounts[itemName] || 0) + quantity;
+          });
+        }
+      });
+
+      // Convert to array and sort by quantity
+      const topItemsArray = Object.entries(itemCounts)
+        .map(([name, quantity]) => ({ name, quantity }))
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5);
+
+      setTopItems(topItemsArray);
+    } catch (error) {
+      console.error('Error loading top items data:', error);
+    }
+  };
+
+  const loadStaffPerformanceData = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('sales')
+        .select(`
+          total_amount,
+          users!inner(full_name)
+        `)
+        .gte('created_at', `${today}T00:00:00.000Z`)
+        .lte('created_at', `${today}T23:59:59.999Z`);
+
+      if (error) throw error;
+
+      // Process sales data by staff
+      const staffSales: { [key: string]: number } = {};
+      
+      data?.forEach(sale => {
+        const staffName = sale.users?.full_name || 'Unknown';
+        const amount = parseFloat(sale.total_amount.toString());
+        staffSales[staffName] = (staffSales[staffName] || 0) + amount;
+      });
+
+      // Convert to array and sort by sales amount
+      const staffArray = Object.entries(staffSales)
+        .map(([name, sales]) => ({ name, sales: Math.round(sales * 100) / 100 }))
+        .sort((a, b) => b.sales - a.sales);
+
+      setStaffPerformance(staffArray);
+    } catch (error) {
+      console.error('Error loading staff performance data:', error);
+    }
   };
 
   if (loading) {
@@ -259,35 +344,95 @@ const Analytics = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Selling Items - Placeholder */}
+        {/* Top Selling Items */}
         <Card>
           <div className="p-4 border-b border-border">
             <h3 className="font-semibold text-foreground flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
-              Top Selling Items
+              Top Selling Items (Today)
             </h3>
           </div>
           <div className="p-4">
-            <div className="text-center text-muted-foreground py-8">
-              <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Analytics coming soon</p>
-            </div>
+            {topItems.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No sales data today</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={topItems} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar 
+                    dataKey="quantity" 
+                    fill="hsl(var(--coffee-gold))"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Card>
 
-        {/* Staff Performance - Placeholder */}
+        {/* Staff Performance */}
         <Card>
           <div className="p-4 border-b border-border">
             <h3 className="font-semibold text-foreground flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Staff Performance
+              Staff Performance (Today)
             </h3>
           </div>
           <div className="p-4">
-            <div className="text-center text-muted-foreground py-8">
-              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Analytics coming soon</p>
-            </div>
+            {staffPerformance.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No sales data today</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={staffPerformance} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => `$${value}`}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                    formatter={(value) => [`$${value}`, 'Sales']}
+                  />
+                  <Bar 
+                    dataKey="sales" 
+                    fill="hsl(var(--coffee-bean))"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Card>
       </div>
