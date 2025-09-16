@@ -102,19 +102,8 @@ const AddStaffDialog = ({ isOpen, onClose, onSuccess }: AddStaffDialogProps) => 
 
       if (error) throw error;
 
-      // Update user profile with permissions
-      const { data: user } = await supabase.auth.getUser();
-      if (user.user) {
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            permissions,
-            email: formData.email,
-          })
-          .eq('id', user.user.id);
-
-        if (updateError) throw updateError;
-      }
+      // User profile creation completed successfully
+      // Email is managed through Supabase Auth automatically
 
       toast({
         title: "Staff Member Added",

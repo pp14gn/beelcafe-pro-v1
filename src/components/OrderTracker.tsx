@@ -53,16 +53,20 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*')
+        .select('*, prep_time_seconds')
         .eq('shift_id', currentShift.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const allOrders = data || [];
-      setOrders(allOrders);
-      setActiveOrders(allOrders.filter(order => ['pending', 'in_progress'].includes(order.status)));
-      setCompletedOrders(allOrders.filter(order => order.status === 'completed'));
+      const allOrders = (data || []).map(order => ({
+        ...order,
+        items: Array.isArray(order.items) ? order.items : [],
+        prep_time_seconds: order.prep_time_seconds || 0
+      }));
+      setOrders(allOrders as any[]);
+      setActiveOrders(allOrders.filter(order => ['pending', 'in_progress'].includes(order.status as string)) as any[]);
+      setCompletedOrders(allOrders.filter(order => order.status === 'completed') as any[]);
 
       // Initialize timers for active orders
       const newTimers: { [key: string]: number } = {};

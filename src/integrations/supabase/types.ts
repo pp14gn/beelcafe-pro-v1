@@ -107,6 +107,7 @@ export type Database = {
           created_at: string
           id: string
           items: Json
+          prep_time_seconds: number | null
           shift_id: string | null
           start_time: string | null
           status: string
@@ -119,6 +120,7 @@ export type Database = {
           created_at?: string
           id?: string
           items: Json
+          prep_time_seconds?: number | null
           shift_id?: string | null
           start_time?: string | null
           status?: string
@@ -131,6 +133,7 @@ export type Database = {
           created_at?: string
           id?: string
           items?: Json
+          prep_time_seconds?: number | null
           shift_id?: string | null
           start_time?: string | null
           status?: string
