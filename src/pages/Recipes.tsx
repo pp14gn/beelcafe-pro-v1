@@ -221,7 +221,7 @@ const Recipes = () => {
             <div>
               <p className="text-sm text-muted-foreground">Avg Modifiers</p>
               <p className="text-2xl font-bold text-pos-info">
-                {Math.round(recipes.reduce((sum, r) => sum + r.modifiers.length, 0) / recipes.length)}
+                {recipes.length > 0 ? Math.round(recipes.reduce((sum, r) => sum + (r.recipe_modifiers?.length || 0), 0) / recipes.length) : 0}
               </p>
             </div>
           </div>
