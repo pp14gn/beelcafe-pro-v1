@@ -25,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isHardcodedAdmin, setIsHardcodedAdmin] = useState(false);
 
   useEffect(() => {
     // Get initial session with error handling
@@ -53,6 +54,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for auth changes with error handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
+        // Don't override hardcoded admin user
+        if (isHardcodedAdmin) {
+          setLoading(false);
+          return;
+        }
+        
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchUserProfile(session.user.id);
@@ -67,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isHardcodedAdmin]);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -122,6 +129,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setUser(adminUser as any);
         setUserProfile(adminProfile);
+        setIsHardcodedAdmin(true);
+        setLoading(false);
         return { error: null };
       }
 
@@ -167,6 +176,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    setIsHardcodedAdmin(false);
+    setUser(null);
+    setUserProfile(null);
     await supabase.auth.signOut();
   };
 
