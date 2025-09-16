@@ -11,18 +11,30 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Sidebar = () => {
   const location = useLocation();
+  const { userProfile, signOut } = useAuth();
 
   const navItems = [
     { to: "/", icon: ShoppingCart, label: "POS System", primary: true },
-    { to: "/inventory", icon: Package, label: "Inventory" },
-    { to: "/recipes", icon: ChefHat, label: "Recipes" },
-    { to: "/staff", icon: Users, label: "Staff" },
-    { to: "/analytics", icon: BarChart3, label: "Analytics" },
+    { to: "/inventory", icon: Package, label: "Inventory", requiredRole: "manager" },
+    { to: "/recipes", icon: ChefHat, label: "Recipes", requiredRole: "manager" },
+    { to: "/staff", icon: Users, label: "Staff", requiredRole: "manager" },
+    { to: "/analytics", icon: BarChart3, label: "Analytics", requiredRole: "manager" },
     { to: "/settings", icon: Settings, label: "Settings" },
   ];
+
+  const filteredNavItems = navItems.filter(item => 
+    !item.requiredRole || 
+    userProfile?.role === 'admin' || 
+    userProfile?.role === item.requiredRole
+  );
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <div className="flex h-screen w-64 flex-col bg-gradient-coffee shadow-elevated">
@@ -39,7 +51,7 @@ const Sidebar = () => {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {navItems.map((item) => (
+        {filteredNavItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -63,11 +75,17 @@ const Sidebar = () => {
       <div className="p-4 space-y-3">
         <div className="flex items-center gap-3 px-4 py-2">
           <div className="h-8 w-8 rounded-full bg-coffee-gold flex items-center justify-center">
-            <span className="text-sm font-semibold text-coffee-bean">JD</span>
+            <span className="text-sm font-semibold text-coffee-bean">
+              {userProfile?.full_name?.charAt(0) || userProfile?.username?.charAt(0) || 'U'}
+            </span>
           </div>
           <div>
-            <p className="text-sm font-medium text-coffee-cream">John Doe</p>
-            <p className="text-xs text-coffee-cream/60">Manager</p>
+            <p className="text-sm font-medium text-coffee-cream">
+              {userProfile?.full_name || userProfile?.username || 'User'}
+            </p>
+            <p className="text-xs text-coffee-cream/60 capitalize">
+              {userProfile?.role || 'Staff'}
+            </p>
           </div>
         </div>
         
@@ -75,12 +93,7 @@ const Sidebar = () => {
           variant="ghost" 
           size="sm" 
           className="w-full justify-start gap-3 text-coffee-cream/80 hover:bg-coffee-cream/10 hover:text-coffee-cream"
-          onClick={() => {
-            // Add logout functionality here
-            console.log("Signing out...");
-            // For now, just reload the page
-            window.location.reload();
-          }}
+          onClick={handleSignOut}
         >
           <LogOut className="h-4 w-4" />
           Sign Out
