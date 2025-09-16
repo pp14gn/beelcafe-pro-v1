@@ -18,19 +18,27 @@ interface ModifierDialogProps {
     id: string;
     name: string;
     price: number;
-    modifiers?: string[];
-    selectedModifiers: string[];
+    modifiers?: {
+      id: string;
+      name: string;
+      price: number;
+    }[];
+    selectedModifiers: {
+      id: string;
+      name: string;
+      price: number;
+    }[];
   };
-  onConfirm: (itemId: string, selectedModifiers: string[]) => void;
+  onConfirm: (itemId: string, selectedModifiers: {id: string, name: string, price: number}[]) => void;
 }
 
 const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProps) => {
-  const [selectedModifiers, setSelectedModifiers] = useState<string[]>(item.selectedModifiers || []);
+  const [selectedModifiers, setSelectedModifiers] = useState<{id: string, name: string, price: number}[]>(item.selectedModifiers || []);
 
-  const handleModifierToggle = (modifier: string) => {
+  const handleModifierToggle = (modifier: {id: string, name: string, price: number}) => {
     setSelectedModifiers(prev => 
-      prev.includes(modifier) 
-        ? prev.filter(m => m !== modifier)
+      prev.find(m => m.id === modifier.id)
+        ? prev.filter(m => m.id !== modifier.id)
         : [...prev, modifier]
     );
   };
@@ -40,8 +48,7 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
     onClose();
   };
 
-  const modifierPrice = 0.50; // Each modifier adds $0.50
-  const totalModifierCost = selectedModifiers.length * modifierPrice;
+  const totalModifierCost = selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -64,21 +71,21 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
             <h4 className="text-sm font-semibold text-foreground mb-3">Available Modifiers</h4>
             <div className="space-y-3">
               {item.modifiers?.map((modifier) => (
-                <div key={modifier} className="flex items-center justify-between space-x-3">
+                <div key={modifier.id} className="flex items-center justify-between space-x-3">
                   <div className="flex items-center space-x-3">
                     <Checkbox
-                      id={modifier}
-                      checked={selectedModifiers.includes(modifier)}
+                      id={modifier.id}
+                      checked={selectedModifiers.some(m => m.id === modifier.id)}
                       onCheckedChange={() => handleModifierToggle(modifier)}
                     />
                     <label
-                      htmlFor={modifier}
+                      htmlFor={modifier.id}
                       className="text-sm text-foreground cursor-pointer"
                     >
-                      {modifier}
+                      {modifier.name}
                     </label>
                   </div>
-                  <span className="text-sm text-muted-foreground">+${modifierPrice.toFixed(2)}</span>
+                  <span className="text-sm text-muted-foreground">+${modifier.price.toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -91,8 +98,8 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
                 <h4 className="text-sm font-semibold text-foreground mb-2">Selected Modifiers:</h4>
                 <div className="flex flex-wrap gap-2">
                   {selectedModifiers.map((modifier) => (
-                    <Badge key={modifier} variant="secondary" className="text-xs">
-                      {modifier}
+                    <Badge key={modifier.id} variant="secondary" className="text-xs">
+                      {modifier.name} (+${modifier.price.toFixed(2)})
                     </Badge>
                   ))}
                 </div>

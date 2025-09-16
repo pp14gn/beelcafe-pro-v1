@@ -34,12 +34,20 @@ interface MenuItem {
   name: string;
   price: number;
   category: string;
-  modifiers?: string[];
+  modifiers?: {
+    id: string;
+    name: string;
+    price: number;
+  }[];
 }
 
 interface OrderItem extends MenuItem {
   quantity: number;
-  selectedModifiers: string[];
+  selectedModifiers: {
+    id: string;
+    name: string;
+    price: number;
+  }[];
 }
 
 const POS = () => {
@@ -119,7 +127,11 @@ const POS = () => {
         category: recipe.category,
         modifiers: recipe.recipe_modifiers
           ?.filter(modifier => modifier.is_active)
-          ?.map(modifier => modifier.name) || []
+          ?.map(modifier => ({
+            id: modifier.id,
+            name: modifier.name,
+            price: Number(modifier.price)
+          })) || []
       })) || [];
 
       setMenuItems(formattedMenuItems);
@@ -232,7 +244,13 @@ const POS = () => {
   };
 
   const getTotalPrice = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return cart.reduce((total, item) => {
+      const basePrice = item.price * item.quantity;
+      const modifierPrice = item.selectedModifiers.reduce((modTotal, modifier) => 
+        modTotal + (modifier.price * item.quantity), 0
+      );
+      return total + basePrice + modifierPrice;
+    }, 0);
   };
 
   const checkInventoryForItem = async (menuItem: MenuItem) => {
@@ -352,7 +370,7 @@ const POS = () => {
     setCustomizeDialogOpen(true);
   };
 
-  const updateCartItemModifiers = (itemId: string, selectedModifiers: string[]) => {
+  const updateCartItemModifiers = (itemId: string, selectedModifiers: {id: string, name: string, price: number}[]) => {
     const index = cart.findIndex(item => item === selectedItem);
     if (index >= 0) {
       const updatedCart = [...cart];
@@ -694,8 +712,8 @@ const POS = () => {
                               {item.selectedModifiers.length > 0 && (
                                 <div className="mt-1">
                                   {item.selectedModifiers.map((modifier) => (
-                                    <Badge key={modifier} variant="outline" className="mr-1 text-xs">
-                                      {modifier}
+                                    <Badge key={modifier.id} variant="outline" className="mr-1 text-xs">
+                                      {modifier.name} (+${modifier.price.toFixed(2)})
                                     </Badge>
                                   ))}
                                 </div>
@@ -731,7 +749,7 @@ const POS = () => {
                               </Button>
                             </div>
                             <span className="font-bold text-coffee-gold">
-                              ${(item.price * item.quantity).toFixed(2)}
+                              ${((item.price + item.selectedModifiers.reduce((sum, mod) => sum + mod.price, 0)) * item.quantity).toFixed(2)}
                             </span>
                           </div>
                           
