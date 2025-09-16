@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +22,6 @@ interface StartShiftDialogProps {
 const StartShiftDialog = ({ isOpen, onClose, onShiftStarted }: StartShiftDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [startingCash, setStartingCash] = useState("");
-  const [notes, setNotes] = useState("");
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -64,7 +62,6 @@ const StartShiftDialog = ({ isOpen, onClose, onShiftStarted }: StartShiftDialogP
             starting_cash: parseFloat(startingCash),
             cash_outs_total: 0,
             sales_total: 0,
-            notes: notes || null,
             status: 'active',
           }
         ])
@@ -80,7 +77,6 @@ const StartShiftDialog = ({ isOpen, onClose, onShiftStarted }: StartShiftDialogP
 
       onShiftStarted(shift.id);
       setStartingCash("");
-      setNotes("");
       onClose();
     } catch (error) {
       console.error('Error starting shift:', error);
@@ -96,7 +92,6 @@ const StartShiftDialog = ({ isOpen, onClose, onShiftStarted }: StartShiftDialogP
 
   const handleClose = () => {
     setStartingCash("");
-    setNotes("");
     onClose();
   };
 
@@ -127,16 +122,6 @@ const StartShiftDialog = ({ isOpen, onClose, onShiftStarted }: StartShiftDialogP
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any notes about the shift start..."
-              rows={3}
-            />
-          </div>
 
           <div className="flex gap-2 pt-4">
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
