@@ -61,6 +61,7 @@ const POS = () => {
   const [pendingSale, setPendingSale] = useState<'cash' | 'card' | null>(null);
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
   const [criticalStockItems, setCriticalStockItems] = useState<any[]>([]);
+  const [customerName, setCustomerName] = useState("");
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -440,6 +441,7 @@ const POS = () => {
           total_amount: total,
           status: 'pending',
           start_time: new Date().toISOString(),
+          customer_name: customerName.trim() || null,
         });
 
       if (orderError) {
@@ -466,6 +468,7 @@ const POS = () => {
       });
 
       setCart([]);
+      setCustomerName("");
       if (paymentMethod === 'cash') {
         setCurrentCashTotal(prev => prev + total);
       }
@@ -752,6 +755,21 @@ const POS = () => {
                 {/* Checkout Section */}
                 <div className="p-4 border-t border-border bg-muted/30">
                   <div className="space-y-3">
+                    <div className="space-y-2">
+                      <label htmlFor="customerName" className="text-sm font-medium text-foreground">
+                        Customer Name (Optional)
+                      </label>
+                      <Input
+                        id="customerName"
+                        placeholder="Enter customer name..."
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    
+                    <Separator />
+                    
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-foreground">Total:</span>
                       <span className="text-xl font-bold text-coffee-gold">
@@ -790,31 +808,46 @@ const POS = () => {
       {/* Mobile Bottom Cart */}
       {isMobile && cart.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 p-4">
-          <div className="flex justify-between items-center mb-3">
-            <span className="font-semibold text-foreground">Cart ({cart.length})</span>
-            <span className="text-lg font-bold text-coffee-gold">
-              ${getTotalPrice().toFixed(2)}
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <Button 
-              variant="outline" 
-              className="gap-2"
-              onClick={() => processSale('cash')}
-              disabled={cart.length === 0 || !currentShift}
-            >
-              <DollarSign className="h-4 w-4" />
-              Cash
-            </Button>
-            <Button 
-              className="gap-2 bg-gradient-coffee hover:opacity-90"
-              onClick={() => processSale('card')}
-              disabled={cart.length === 0 || !currentShift}
-            >
-              <CreditCard className="h-4 w-4" />
-              Card
-            </Button>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <label htmlFor="customerNameMobile" className="text-sm font-medium text-foreground">
+                Customer Name (Optional)
+              </label>
+              <Input
+                id="customerNameMobile"
+                placeholder="Enter customer name..."
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <span className="font-semibold text-foreground">Cart ({cart.length})</span>
+              <span className="text-lg font-bold text-coffee-gold">
+                ${getTotalPrice().toFixed(2)}
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => processSale('cash')}
+                disabled={cart.length === 0 || !currentShift}
+              >
+                <DollarSign className="h-4 w-4" />
+                Cash
+              </Button>
+              <Button 
+                className="gap-2 bg-gradient-coffee hover:opacity-90"
+                onClick={() => processSale('card')}
+                disabled={cart.length === 0 || !currentShift}
+              >
+                <CreditCard className="h-4 w-4" />
+                Card
+              </Button>
+            </div>
           </div>
         </div>
       )}

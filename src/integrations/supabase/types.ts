@@ -105,6 +105,7 @@ export type Database = {
         Row: {
           completion_time: string | null
           created_at: string
+          customer_name: string | null
           id: string
           items: Json
           prep_time_seconds: number | null
@@ -118,6 +119,7 @@ export type Database = {
         Insert: {
           completion_time?: string | null
           created_at?: string
+          customer_name?: string | null
           id?: string
           items: Json
           prep_time_seconds?: number | null
@@ -131,6 +133,7 @@ export type Database = {
         Update: {
           completion_time?: string | null
           created_at?: string
+          customer_name?: string | null
           id?: string
           items?: Json
           prep_time_seconds?: number | null
