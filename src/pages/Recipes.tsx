@@ -285,7 +285,7 @@ const Recipes = () => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-muted-foreground">Base Price:</span>
-                  <span className="font-semibold text-coffee-gold">${recipe.basePrice.toFixed(2)}</span>
+                  <span className="font-semibold text-coffee-gold">${recipe.basePrice?.toFixed(2) || '0.00'}</span>
                 </div>
 
                 <Separator />
@@ -341,7 +341,7 @@ const Recipes = () => {
                               {selectedRecipe.category}
                             </Badge>
                             <span className="text-coffee-gold font-semibold">
-                              ${selectedRecipe.basePrice.toFixed(2)}
+                              ${selectedRecipe.basePrice?.toFixed(2) || '0.00'}
                             </span>
                             <span className="text-muted-foreground">
                               {selectedRecipe.prepTime}m prep
@@ -349,19 +349,19 @@ const Recipes = () => {
                           </div>
                         </div>
 
-                        <div>
-                          <h4 className="font-semibold mb-3">Ingredients</h4>
-                          <div className="space-y-2">
-                            {selectedRecipe.ingredients.map((ingredient, index) => (
-                              <div key={index} className="flex justify-between items-center py-2 px-3 bg-muted/50 rounded-lg">
-                                <span>{ingredient.name}</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {ingredient.quantity} {ingredient.unit}
-                                </span>
-                              </div>
-                            ))}
+                          <div>
+                            <h4 className="font-semibold mb-3">Ingredients</h4>
+                            <div className="space-y-2">
+                              {(selectedRecipe.ingredients || []).map((ingredient, index) => (
+                                <div key={index} className="flex justify-between items-center py-2 px-3 bg-muted/50 rounded-lg">
+                                  <span>{ingredient.name}</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {ingredient.quantity} {ingredient.unit}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
 
                         <div>
                           <h4 className="font-semibold mb-3">Available Modifiers</h4>
@@ -372,8 +372,8 @@ const Recipes = () => {
                                   <div className="flex justify-between items-start mb-2">
                                     <span className="font-medium">{modifier.name}</span>
                                     <span className="text-coffee-gold font-semibold">
-                                      {modifier.price > 0 ? `+$${modifier.price.toFixed(2)}` : 
-                                       modifier.price < 0 ? `-$${Math.abs(modifier.price).toFixed(2)}` : 
+                                      {modifier.price > 0 ? `+$${modifier.price?.toFixed(2) || '0.00'}` : 
+                                       modifier.price < 0 ? `-$${Math.abs(modifier.price)?.toFixed(2) || '0.00'}` : 
                                        'Free'}
                                     </span>
                                   </div>
