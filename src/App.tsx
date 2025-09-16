@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import LoginForm from "./components/auth/LoginForm";
 import ResponsiveLayout from "./components/Layout/ResponsiveLayout";
 import POS from "./pages/POS";
+import Orders from "./pages/Orders";
 import Inventory from "./pages/Inventory";
 import Recipes from "./pages/Recipes";
 import Staff from "./pages/Staff";
@@ -35,6 +36,13 @@ const App = () => (
               <ProtectedRoute>
                 <ResponsiveLayout>
                   <POS />
+                </ResponsiveLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/orders" element={
+              <ProtectedRoute>
+                <ResponsiveLayout>
+                  <Orders />
                 </ResponsiveLayout>
               </ProtectedRoute>
             } />

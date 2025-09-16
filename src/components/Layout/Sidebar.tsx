@@ -7,7 +7,8 @@ import {
   ChefHat, 
   BarChart3, 
   Settings,
-  LogOut
+  LogOut,
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +21,7 @@ const Sidebar = () => {
 
   const navItems = [
     { to: "/pos", icon: ShoppingCart, label: "POS System", primary: true },
+    { to: "/orders", icon: Clock, label: "Orders" },
     { to: "/inventory", icon: Package, label: "Inventory", requiredRole: "manager" },
     { to: "/recipes", icon: ChefHat, label: "Recipes", requiredRole: "manager" },
     { to: "/staff", icon: Users, label: "Staff", requiredRole: "manager" },

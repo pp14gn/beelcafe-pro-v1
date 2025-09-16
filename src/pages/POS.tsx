@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { useIsMobile } from "@/hooks/use-mobile";
 import ModifierDialog from "@/components/ModifierDialog";
 import CashOutDialog from "@/components/CashOutDialog";
@@ -26,7 +26,7 @@ import {
   StopCircle,
   AlertCircle
 } from "lucide-react";
-import OrderTracker from "@/components/OrderTracker";
+
 
 interface MenuItem {
   id: string;
@@ -399,57 +399,52 @@ const POS = () => {
 
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-background pb-20 lg:pb-0">
-      {/* Main Content with Tabs */}
+      {/* Header */}
       <div className="flex-1">
-        <Tabs defaultValue="pos" className="h-full">
-          <div className={`border-b border-border p-4 ${isMobile ? 'pb-20' : ''}`}>
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-              <h1 className="text-xl lg:text-2xl font-bold text-foreground">Point of Sale</h1>
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <div className="text-center sm:text-right">
-                  <p className="text-sm text-muted-foreground">Today's Cash</p>
-                  <p className="text-lg font-bold text-coffee-gold">${currentCashTotal.toFixed(2)}</p>
-                </div>
-                {!currentShift && (
-                  <Button
-                    onClick={() => setStartShiftDialogOpen(true)}
-                    className="gap-2 bg-gradient-coffee hover:opacity-90 w-full sm:w-auto"
-                  >
-                    <Clock className="h-4 w-4" />
-                    Start Shift
-                  </Button>
-                )}
-                {currentShift && (
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <Button
-                      variant="outline"
-                      onClick={() => setCashOutDialogOpen(true)}
-                      className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10 flex-1 sm:flex-none"
-                      disabled={currentCashTotal <= 0}
-                    >
-                      <Calculator className="h-4 w-4" />
-                      <span className="hidden sm:inline">Cash Out</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleEndShift}
-                      className="gap-2 border-destructive/30 hover:bg-destructive/10 flex-1 sm:flex-none"
-                    >
-                      <StopCircle className="h-4 w-4" />
-                      <span className="hidden sm:inline">End Shift</span>
-                    </Button>
-                  </div>
-                )}
+        <div className={`border-b border-border p-4 ${isMobile ? 'pb-20' : ''}`}>
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <h1 className="text-xl lg:text-2xl font-bold text-foreground">Point of Sale</h1>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="text-center sm:text-right">
+                <p className="text-sm text-muted-foreground">Today's Cash</p>
+                <p className="text-lg font-bold text-coffee-gold">${currentCashTotal.toFixed(2)}</p>
               </div>
+              {!currentShift && (
+                <Button
+                  onClick={() => setStartShiftDialogOpen(true)}
+                  className="gap-2 bg-gradient-coffee hover:opacity-90 w-full sm:w-auto"
+                >
+                  <Clock className="h-4 w-4" />
+                  Start Shift
+                </Button>
+              )}
+              {currentShift && (
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    onClick={() => setCashOutDialogOpen(true)}
+                    className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10 flex-1 sm:flex-none"
+                    disabled={currentCashTotal <= 0}
+                  >
+                    <Calculator className="h-4 w-4" />
+                    <span className="hidden sm:inline">Cash Out</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleEndShift}
+                    className="gap-2 border-destructive/30 hover:bg-destructive/10 flex-1 sm:flex-none"
+                  >
+                    <StopCircle className="h-4 w-4" />
+                    <span className="hidden sm:inline">End Shift</span>
+                  </Button>
+                </div>
+              )}
             </div>
-            
-            <TabsList className="grid w-full grid-cols-2 max-w-md">
-              <TabsTrigger value="pos">POS System</TabsTrigger>
-              <TabsTrigger value="orders">Open Orders</TabsTrigger>
-            </TabsList>
           </div>
+        </div>
 
-          <TabsContent value="pos" className="flex flex-col lg:flex-row h-[calc(100vh-140px)] m-0">
+        {/* Main POS Content */}
+        <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)]">
             {/* Menu Section */}
             <div className="flex-1 p-4 lg:p-6">
               <p className="text-muted-foreground mb-4 lg:mb-6 text-sm lg:text-base">
@@ -636,21 +631,7 @@ const POS = () => {
                 </div>
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="orders" className="m-0">
-            {currentShift ? (
-              <OrderTracker currentShift={currentShift} />
-            ) : (
-              <div className="flex items-center justify-center min-h-[300px]">
-                <div className="text-center text-muted-foreground">
-                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Start a shift to view orders</p>
-                </div>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
 
       {/* Mobile Bottom Cart */}

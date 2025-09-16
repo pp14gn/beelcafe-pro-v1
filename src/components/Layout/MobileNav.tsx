@@ -9,7 +9,8 @@ import {
   BarChart3, 
   Settings,
   LogOut,
-  X
+  X,
+  Clock
 } from "lucide-react";
 
 interface MobileNavProps {
@@ -22,6 +23,7 @@ const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
 
   const navItems = [
     { to: "/pos", icon: ShoppingCart, label: "POS System" },
+    { to: "/orders", icon: Clock, label: "Orders" },
     { to: "/inventory", icon: Package, label: "Inventory", requiredRole: "manager" },
     { to: "/recipes", icon: ChefHat, label: "Recipes", requiredRole: "manager" },
     { to: "/staff", icon: Users, label: "Staff", requiredRole: "manager" },
