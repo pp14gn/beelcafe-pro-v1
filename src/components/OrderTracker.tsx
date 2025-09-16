@@ -217,13 +217,13 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
   );
 
   return (
-    <div className="w-96 bg-card border-l border-border">
-      <div className="p-4 border-b border-border">
+    <div className="w-96 bg-card border-l border-border flex flex-col h-full">
+      <div className="p-4 border-b border-border flex-shrink-0">
         <h2 className="text-lg font-bold text-foreground">Order Queue</h2>
       </div>
       
-      <Tabs defaultValue="active" className="h-full">
-        <TabsList className="grid w-full grid-cols-2 m-4">
+      <Tabs defaultValue="active" className="flex flex-col flex-1 min-h-0">
+        <TabsList className="grid w-full grid-cols-2 m-4 flex-shrink-0">
           <TabsTrigger value="active">
             Active Orders ({activeOrders.length})
           </TabsTrigger>
@@ -232,7 +232,7 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="active" className="m-0 h-[calc(100vh-160px)]">
+        <TabsContent value="active" className="flex-1 min-h-0 m-0">
           <ScrollArea className="h-full p-4">
             {activeOrders.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
@@ -249,7 +249,7 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
           </ScrollArea>
         </TabsContent>
         
-        <TabsContent value="completed" className="m-0 h-[calc(100vh-160px)]">
+        <TabsContent value="completed" className="flex-1 min-h-0 m-0">
           <ScrollArea className="h-full p-4">
             {completedOrders.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
