@@ -196,10 +196,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error };
       }
 
-      // Create user profile
+      // Create user profile (use upsert to handle existing users)
       const { error: profileError } = await supabase
         .from('users')
-        .insert([
+        .upsert(
           {
             id: data.user.id,
             username: userData.username || '',
@@ -207,7 +207,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             role: userData.role || 'cashier',
             is_active: true,
           },
-        ]);
+          {
+            onConflict: 'id'
+          }
+        );
 
       return { error: profileError };
     } catch (error) {
