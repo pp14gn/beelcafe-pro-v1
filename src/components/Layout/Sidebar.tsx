@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
+import beelcafeLogo from '@/assets/beelcafe-logo.png';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -40,12 +41,14 @@ const Sidebar = () => {
     <div className="flex h-screen w-64 flex-col bg-gradient-coffee shadow-elevated">
       {/* Logo Header */}
       <div className="flex items-center gap-3 p-6 border-b border-coffee-cream/20">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-coffee-gold">
-          <Coffee className="h-6 w-6 text-coffee-bean" />
-        </div>
+        <img 
+          src={beelcafeLogo} 
+          alt="Beelcafe Logo" 
+          className="h-12 w-12 rounded-full shadow-pos"
+        />
         <div>
-          <h1 className="text-lg font-bold text-coffee-cream">CoffeePos</h1>
-          <p className="text-sm text-coffee-cream/70">Pro System</p>
+          <h1 className="text-lg font-bold text-coffee-cream">Beelcafe</h1>
+          <p className="text-sm text-coffee-cream/70">POS System</p>
         </div>
       </div>
 

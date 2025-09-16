@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { createAdminUser } from '@/utils/createAdminUser';
 import { supabase } from '@/lib/supabase';
+import beelcafeLogo from '@/assets/beelcafe-logo.png';
 
 const LoginForm = () => {
   const [emailOrUsername, setEmailOrUsername] = useState('');
@@ -91,17 +92,29 @@ const LoginForm = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-coffee p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-coffee p-4">
+      {/* Beelcafe Banner */}
+      <div className="mb-8 text-center">
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <img 
+            src={beelcafeLogo} 
+            alt="Beelcafe Logo" 
+            className="h-16 w-16 rounded-full shadow-elevated"
+          />
+          <h1 className="text-4xl font-bold text-coffee-cream drop-shadow-lg">
+            Beelcafe
+          </h1>
+        </div>
+        <p className="text-coffee-cream/80 text-lg">
+          Sweet Service, Buzzing with Quality
+        </p>
+      </div>
+
       <Card className="w-full max-w-md bg-background/95 backdrop-blur shadow-elevated border-border">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-coffee-gold">
-              <Coffee className="h-8 w-8 text-coffee-bean" />
-            </div>
-          </div>
           <CardTitle className="text-2xl font-bold text-foreground">Welcome Back</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Sign in to your CoffeePos account
+            Sign in to your Beelcafe account
           </CardDescription>
         </CardHeader>
         <CardContent>
