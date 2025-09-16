@@ -10,6 +10,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import ModifierDialog from "@/components/ModifierDialog";
 import CashOutDialog from "@/components/CashOutDialog";
 import StartShiftDialog from "@/components/StartShiftDialog";
+import InventoryWarningDialog from "@/components/InventoryWarningDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +56,11 @@ const POS = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [isLoadingMenu, setIsLoadingMenu] = useState(true);
   const [availableCategories, setAvailableCategories] = useState<{id: string, name: string, icon: any}[]>([]);
+  const [inventoryWarningOpen, setInventoryWarningOpen] = useState(false);
+  const [pendingCartItem, setPendingCartItem] = useState<MenuItem | null>(null);
+  const [pendingSale, setPendingSale] = useState<'cash' | 'card' | null>(null);
+  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
+  const [criticalStockItems, setCriticalStockItems] = useState<any[]>([]);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -228,7 +234,85 @@ const POS = () => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  const addToCart = (menuItem: MenuItem) => {
+  const checkInventoryForItem = async (menuItem: MenuItem) => {
+    try {
+      const { data: recipeIngredients, error } = await supabase
+        .from('recipe_ingredients')
+        .select(`
+          quantity,
+          inventory_items (
+            id,
+            name,
+            current_stock,
+            min_stock
+          )
+        `)
+        .eq('recipe_id', menuItem.id);
+
+      if (error) {
+        console.error('Error checking inventory:', error);
+        return { lowStock: [], critical: [] };
+      }
+
+      const lowStock: any[] = [];
+      const critical: any[] = [];
+
+      recipeIngredients?.forEach(ingredient => {
+        const item = ingredient.inventory_items;
+        if (item) {
+          const neededQuantity = Number(ingredient.quantity);
+          const currentStock = Number(item.current_stock);
+          const minStock = Number(item.min_stock);
+
+          if (currentStock <= 0) {
+            critical.push({
+              name: item.name,
+              current_stock: currentStock,
+              min_stock: minStock,
+              status: 'critical'
+            });
+          } else if (currentStock <= minStock || currentStock - neededQuantity <= minStock) {
+            lowStock.push({
+              name: item.name,
+              current_stock: currentStock,
+              min_stock: minStock,
+              status: 'low'
+            });
+          }
+        }
+      });
+
+      return { lowStock, critical };
+    } catch (error) {
+      console.error('Error checking inventory:', error);
+      return { lowStock: [], critical: [] };
+    }
+  };
+
+  const addToCart = async (menuItem: MenuItem) => {
+    const { lowStock, critical } = await checkInventoryForItem(menuItem);
+    
+    if (critical.length > 0 || lowStock.length > 0) {
+      setLowStockItems(lowStock);
+      setCriticalStockItems(critical);
+      setPendingCartItem(menuItem);
+      setInventoryWarningOpen(true);
+      
+      // Show toast notification for low stock items
+      if (lowStock.length > 0 && critical.length === 0) {
+        toast({
+          variant: "default",
+          title: "Low Stock Warning",
+          description: `Some ingredients for ${menuItem.name} are running low.`,
+        });
+      }
+      return;
+    }
+
+    addItemToCart(menuItem);
+  };
+
+  const addItemToCart = (menuItem: MenuItem) => {
     const existingItemIndex = cart.findIndex(item => 
       item.id === menuItem.id && item.selectedModifiers.length === 0
     );
@@ -276,7 +360,52 @@ const POS = () => {
     }
   };
 
+  const checkInventoryForCart = async () => {
+    const allLowStock: any[] = [];
+    const allCritical: any[] = [];
+
+    for (const item of cart) {
+      const { lowStock, critical } = await checkInventoryForItem(item);
+      allLowStock.push(...lowStock);
+      allCritical.push(...critical);
+    }
+
+    // Remove duplicates
+    const uniqueLowStock = allLowStock.filter((item, index, self) => 
+      index === self.findIndex(i => i.name === item.name)
+    );
+    const uniqueCritical = allCritical.filter((item, index, self) => 
+      index === self.findIndex(i => i.name === item.name)
+    );
+
+    return { lowStock: uniqueLowStock, critical: uniqueCritical };
+  };
+
   const processSale = async (paymentMethod: 'cash' | 'card') => {
+    if (cart.length === 0 || !user) return;
+
+    const { lowStock, critical } = await checkInventoryForCart();
+    
+    if (critical.length > 0) {
+      setLowStockItems(lowStock);
+      setCriticalStockItems(critical);
+      setPendingSale(paymentMethod);
+      setInventoryWarningOpen(true);
+      return;
+    }
+
+    if (lowStock.length > 0) {
+      toast({
+        variant: "default",
+        title: "Low Stock Warning",
+        description: `${lowStock.length} ingredients are running low.`,
+      });
+    }
+
+    executeProcessSale(paymentMethod);
+  };
+
+  const executeProcessSale = async (paymentMethod: 'cash' | 'card') => {
     if (cart.length === 0 || !user) return;
 
     try {
@@ -352,6 +481,30 @@ const POS = () => {
         description: "An unexpected error occurred.",
       });
     }
+  };
+
+  const handleInventoryConfirm = () => {
+    if (pendingCartItem) {
+      addItemToCart(pendingCartItem);
+      setPendingCartItem(null);
+    }
+    
+    if (pendingSale) {
+      executeProcessSale(pendingSale);
+      setPendingSale(null);
+    }
+    
+    setInventoryWarningOpen(false);
+    setLowStockItems([]);
+    setCriticalStockItems([]);
+  };
+
+  const handleInventoryCancel = () => {
+    setPendingCartItem(null);
+    setPendingSale(null);
+    setInventoryWarningOpen(false);
+    setLowStockItems([]);
+    setCriticalStockItems([]);
   };
 
   const handleStartShift = (shiftId: string) => {
@@ -612,16 +765,16 @@ const POS = () => {
                       <Button 
                         variant="outline" 
                         className="gap-2"
-                        onClick={() => processSale('cash')}
-                        disabled={cart.length === 0 || !currentShift}
+                      onClick={() => processSale('cash')}
+                      disabled={cart.length === 0 || !currentShift}
                       >
                         <DollarSign className="h-4 w-4" />
                         Cash
                       </Button>
                       <Button 
                         className="gap-2 bg-gradient-coffee hover:opacity-90"
-                        onClick={() => processSale('card')}
-                        disabled={cart.length === 0 || !currentShift}
+                      onClick={() => processSale('card')}
+                      disabled={cart.length === 0 || !currentShift}
                       >
                         <CreditCard className="h-4 w-4" />
                         Card
@@ -688,6 +841,15 @@ const POS = () => {
         isOpen={cashOutDialogOpen}
         onClose={() => setCashOutDialogOpen(false)}
         currentCashTotal={currentCashTotal}
+      />
+
+      {/* Inventory Warning Dialog */}
+      <InventoryWarningDialog
+        isOpen={inventoryWarningOpen}
+        onClose={handleInventoryCancel}
+        onConfirm={handleInventoryConfirm}
+        lowStockItems={lowStockItems}
+        criticalStockItems={criticalStockItems}
       />
     </div>
   );
