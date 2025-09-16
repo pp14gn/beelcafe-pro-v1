@@ -11,6 +11,7 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const { user, userProfile, loading } = useAuth();
 
+  // Show loading while auth state is being determined
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-coffee">
@@ -22,8 +23,21 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
     );
   }
 
-  if (!user || !userProfile) {
+  // If no user, redirect to login
+  if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // If user exists but no profile, show loading (prevents redirect loop)
+  if (user && !userProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-coffee">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-coffee-cream" />
+          <p className="text-coffee-cream">Loading profile...</p>
+        </div>
+      </div>
+    );
   }
 
   if (requiredRole && userProfile.role !== requiredRole && userProfile.role !== 'admin') {
