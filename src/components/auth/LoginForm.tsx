@@ -8,7 +8,7 @@ import { Coffee, Eye, EyeOff, Loader2, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { createAdminUser } from '@/utils/createAdminUser';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import beelcafeLogo from '@/assets/beelcafe-logo.png';
 
 const LoginForm = () => {

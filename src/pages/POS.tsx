@@ -10,7 +10,7 @@ import ModifierDialog from "@/components/ModifierDialog";
 import CashOutDialog from "@/components/CashOutDialog";
 import StartShiftDialog from "@/components/StartShiftDialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase, checkTablesExist, initializeDatabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Coffee, 
@@ -50,7 +50,7 @@ const POS = () => {
   const [currentCashTotal, setCurrentCashTotal] = useState(0);
   const [currentShift, setCurrentShift] = useState<any>(null);
   const [shiftSummary, setShiftSummary] = useState({ sales: 0, cashOuts: 0 });
-  const [tablesExist, setTablesExist] = useState<boolean | null>(null);
+  const [tablesExist, setTablesExist] = useState<boolean>(true);
   const [setupInProgress, setSetupInProgress] = useState(false);
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
@@ -125,19 +125,9 @@ const POS = () => {
     const initializeData = async () => {
       if (!user) return;
       
-      setSetupInProgress(true);
-      
-      // Initialize database and create tables if needed
-      const isReady = await initializeDatabase();
-      setTablesExist(isReady);
-      
-      if (isReady) {
-        // Load current shift and cash total
-        loadCurrentShift();
-        loadCurrentCashTotal();
-      }
-      
-      setSetupInProgress(false);
+      // Load current shift and cash total
+      loadCurrentShift();
+      loadCurrentCashTotal();
     };
     
     initializeData();
@@ -238,15 +228,13 @@ const POS = () => {
       // Record the sale
       const { error: saleError } = await supabase
         .from('sales')
-        .insert([
-          {
-            user_id: user.id,
-            shift_id: currentShift?.id || null,
-            items: cart,
-            total_amount: total,
-            payment_method: paymentMethod,
-          },
-        ]);
+        .insert({
+          user_id: user.id,
+          shift_id: currentShift?.id || null,
+          items: cart as any,
+          total_amount: total,
+          payment_method: paymentMethod,
+        });
 
       if (saleError) {
         console.error('Sale recording error:', saleError);
@@ -261,16 +249,14 @@ const POS = () => {
       // Create order for tracking
       const { error: orderError } = await supabase
         .from('orders')
-        .insert([
-          {
-            user_id: user.id,
-            shift_id: currentShift?.id || null,
-            items: cart,
-            total_amount: total,
-            status: 'pending',
-            start_time: new Date().toISOString(),
-          },
-        ]);
+        .insert({
+          user_id: user.id,
+          shift_id: currentShift?.id || null,
+          items: cart as any,
+          total_amount: total,
+          status: 'pending',
+          start_time: new Date().toISOString(),
+        });
 
       if (orderError) {
         console.error('Order creation error:', orderError);
@@ -344,61 +330,7 @@ const POS = () => {
     }
   };
 
-  // Show setup in progress
-  if (setupInProgress || tablesExist === null) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-muted-foreground">
-            {setupInProgress ? 'Setting up database...' : 'Checking database connection...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show database setup failure message if setup failed
-  if (tablesExist === false) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Card className="p-8 max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <AlertCircle className="h-8 w-8 text-destructive" />
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">Database Setup Failed</h2>
-              <p className="text-muted-foreground">Unable to create database tables automatically.</p>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <p className="text-foreground">
-              Please create the tables manually in your Supabase dashboard:
-            </p>
-            
-            <div className="bg-muted p-4 rounded-lg">
-              <p className="font-mono text-sm text-foreground">
-                1. Go to your Supabase dashboard<br/>
-                2. Navigate to SQL Editor<br/>
-                3. Create a new query<br/>
-                4. Copy the SQL from the browser console<br/>
-                5. Run the query<br/>
-                6. Refresh this page
-              </p>
-            </div>
-            
-            <Button 
-              onClick={() => window.location.reload()}
-              className="w-full"
-            >
-              Refresh Page
-            </Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
+  // Show normal POS interface
   return (
     <div className="flex h-screen bg-background">
       {/* Main Content with Tabs */}
