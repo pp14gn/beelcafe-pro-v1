@@ -17,6 +17,172 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder-key'
 )
 
+// Database setup SQL - Run this in Supabase SQL Editor
+export const setupDatabaseSQL = `
+-- Enable RLS
+ALTER DATABASE postgres SET "app.settings.jwt_secret" TO 'your-jwt-secret';
+
+-- Create tables
+CREATE TABLE IF NOT EXISTS public.users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username TEXT UNIQUE NOT NULL,
+    full_name TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('manager', 'cashier', 'admin', 'barista', 'shift_lead')),
+    email TEXT,
+    permissions TEXT[] DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.shifts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    end_time TIMESTAMP WITH TIME ZONE,
+    starting_cash DECIMAL(10,2) NOT NULL,
+    ending_cash DECIMAL(10,2),
+    cash_outs_total DECIMAL(10,2) DEFAULT 0,
+    sales_total DECIMAL(10,2) DEFAULT 0,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.inventory_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    current_stock INTEGER NOT NULL DEFAULT 0,
+    min_stock INTEGER NOT NULL DEFAULT 0,
+    unit TEXT NOT NULL,
+    cost_per_unit DECIMAL(10,2) NOT NULL,
+    supplier TEXT,
+    last_restocked TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.recipes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT,
+    base_price DECIMAL(10,2) NOT NULL,
+    prep_time INTEGER NOT NULL,
+    servings INTEGER NOT NULL DEFAULT 1,
+    instructions TEXT[] DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.recipe_ingredients (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
+    inventory_item_id UUID NOT NULL REFERENCES public.inventory_items(id) ON DELETE CASCADE,
+    quantity DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.recipe_modifiers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    ingredients JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.sales (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    shift_id UUID REFERENCES public.shifts(id),
+    items JSONB NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL,
+    payment_method TEXT NOT NULL CHECK (payment_method IN ('cash', 'card')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.cash_outs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    shift_id UUID REFERENCES public.shifts(id),
+    amount DECIMAL(10,2) NOT NULL,
+    remaining_cash DECIMAL(10,2) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    shift_id UUID REFERENCES public.shifts(id),
+    items JSONB NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'cancelled')),
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completion_time TIMESTAMP WITH TIME ZONE,
+    prep_time_seconds INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on all tables
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shifts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.recipe_ingredients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.recipe_modifiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cash_outs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies - Allow authenticated users to access all data for now
+CREATE POLICY "Allow authenticated users" ON public.users FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users" ON public.shifts FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users" ON public.inventory_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users" ON public.recipes FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users" ON public.recipe_ingredients FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users" ON public.recipe_modifiers FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users" ON public.sales FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users" ON public.cash_outs FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow authenticated users" ON public.orders FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_shifts_user_id ON public.shifts(user_id);
+CREATE INDEX IF NOT EXISTS idx_shifts_status ON public.shifts(status);
+CREATE INDEX IF NOT EXISTS idx_sales_user_id ON public.sales(user_id);
+CREATE INDEX IF NOT EXISTS idx_sales_shift_id ON public.sales(shift_id);
+CREATE INDEX IF NOT EXISTS idx_orders_shift_id ON public.orders(shift_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
+
+-- Insert sample inventory items
+INSERT INTO public.inventory_items (name, category, current_stock, min_stock, unit, cost_per_unit, supplier) VALUES
+('Coffee Beans - Espresso', 'food', 50, 10, 'lbs', 12.50, 'Local Roasters'),
+('Milk - Whole', 'food', 20, 5, 'gallons', 3.50, 'Dairy Farm'),
+('Oat Milk', 'food', 15, 3, 'quarts', 4.25, 'Plant Foods Inc'),
+('Vanilla Syrup', 'food', 8, 2, 'bottles', 8.75, 'Flavor Co'),
+('Sugar', 'food', 25, 5, 'lbs', 2.25, 'Sweet Supply'),
+('Paper Cups - 12oz', 'supplies', 500, 100, 'pieces', 0.12, 'Cup World'),
+('Lids - 12oz', 'supplies', 450, 100, 'pieces', 0.08, 'Cup World'),
+('Napkins', 'supplies', 200, 50, 'packs', 1.50, 'Paper Plus')
+ON CONFLICT DO NOTHING;
+`;
+
+// Check if tables exist
+export const checkTablesExist = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('count(*)')
+      .limit(1);
+    
+    return !error;
+  } catch {
+    return false;
+  }
+};
+
 export type Database = {
   public: {
     Tables: {

@@ -5,11 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ModifierDialog from "@/components/ModifierDialog";
 import CashOutDialog from "@/components/CashOutDialog";
 import StartShiftDialog from "@/components/StartShiftDialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { supabase, checkTablesExist } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Coffee, 
@@ -21,7 +22,8 @@ import {
   Settings,
   Calculator,
   Clock,
-  StopCircle
+  StopCircle,
+  AlertCircle
 } from "lucide-react";
 import OrderTracker from "@/components/OrderTracker";
 
@@ -48,6 +50,7 @@ const POS = () => {
   const [currentCashTotal, setCurrentCashTotal] = useState(0);
   const [currentShift, setCurrentShift] = useState<any>(null);
   const [shiftSummary, setShiftSummary] = useState({ sales: 0, cashOuts: 0 });
+  const [tablesExist, setTablesExist] = useState<boolean | null>(null);
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
@@ -118,9 +121,28 @@ const POS = () => {
   const filteredItems = menuItems.filter(item => item.category === selectedCategory);
 
   useEffect(() => {
-    // Load current shift and cash total
-    loadCurrentShift();
-    loadCurrentCashTotal();
+    const initializeData = async () => {
+      if (!user) return;
+      
+      // Check if tables exist first
+      const exists = await checkTablesExist();
+      setTablesExist(exists);
+      
+      if (exists) {
+        // Load current shift and cash total
+        loadCurrentShift();
+        loadCurrentCashTotal();
+      } else {
+        // Log the setup SQL to console for easy copy-paste
+        console.log('DATABASE SETUP REQUIRED - Copy and paste this SQL into Supabase SQL Editor:');
+        console.log('='.repeat(80));
+        const { setupDatabaseSQL } = await import('@/lib/supabase');
+        console.log(setupDatabaseSQL);
+        console.log('='.repeat(80));
+      }
+    };
+    
+    initializeData();
   }, [user]);
 
   const loadCurrentShift = async () => {
@@ -324,212 +346,290 @@ const POS = () => {
     }
   };
 
-  return (
-    <div className="flex h-screen bg-background">
-      {/* Menu Section */}
-      <div className="flex-1 p-6">
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-2xl font-bold text-foreground">Point of Sale</h1>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Today's Cash</p>
-                <p className="text-lg font-bold text-coffee-gold">${currentCashTotal.toFixed(2)}</p>
-              </div>
-              {!currentShift && (
-                <Button
-                  onClick={() => setStartShiftDialogOpen(true)}
-                  className="gap-2 bg-gradient-coffee hover:opacity-90"
-                >
-                  <Clock className="h-4 w-4" />
-                  Start Shift
-                </Button>
-              )}
-              {currentShift && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setCashOutDialogOpen(true)}
-                    className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10"
-                    disabled={currentCashTotal <= 0}
-                  >
-                    <Calculator className="h-4 w-4" />
-                    Cash Out
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleEndShift}
-                    className="gap-2 border-destructive/30 hover:bg-destructive/10"
-                  >
-                    <StopCircle className="h-4 w-4" />
-                    End Shift
-                  </Button>
-                </div>
-              )}
+  // Show database setup message if tables don't exist
+  if (tablesExist === false) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Card className="p-8 max-w-2xl mx-auto">
+          <div className="flex items-center gap-4 mb-6">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Database Setup Required</h2>
+              <p className="text-muted-foreground">The database tables need to be created first.</p>
             </div>
           </div>
-          <p className="text-muted-foreground">
-            {currentShift ? 'Select items to add to the current order' : 'Start a shift to begin taking orders'}
-          </p>
-        </div>
-
-        {/* Category Tabs */}
-        <div className="flex gap-2 mb-6">
-          {categories.map((category) => (
-            <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? "default" : "outline"}
-              onClick={() => setSelectedCategory(category.id)}
-              className="gap-2"
+          
+          <div className="space-y-4">
+            <p className="text-foreground">
+              To fix this issue, please run the setup SQL in your Supabase SQL Editor:
+            </p>
+            
+            <div className="bg-muted p-4 rounded-lg">
+              <p className="font-mono text-sm text-foreground">
+                1. Go to your Supabase dashboard<br/>
+                2. Navigate to SQL Editor<br/>
+                3. Create a new query<br/>
+                4. Copy and paste the setup SQL from the console<br/>
+                5. Run the query<br/>
+                6. Refresh this page
+              </p>
+            </div>
+            
+            <Button 
+              onClick={() => window.location.reload()}
+              className="w-full"
             >
-              <category.icon className="h-4 w-4" />
-              {category.name}
+              Refresh Page
             </Button>
-          ))}
-        </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
-        {/* Menu Items Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredItems.map((item) => (
-            <Card
-              key={item.id}
-              className={`p-4 transition-all duration-200 border-2 ${
-                currentShift 
-                  ? "cursor-pointer hover:shadow-coffee hover:border-coffee-gold/30" 
-                  : "opacity-50 cursor-not-allowed"
-              }`}
-              onClick={() => currentShift && addToCart(item)}
-            >
-              <div className="text-center">
-                <div className="h-20 w-20 mx-auto mb-3 rounded-full bg-gradient-cream flex items-center justify-center">
-                  <Coffee className="h-8 w-8 text-coffee-bean" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-1">{item.name}</h3>
-                <p className="text-lg font-bold text-coffee-gold">${item.price.toFixed(2)}</p>
-                {item.modifiers && (
-                  <Badge variant="secondary" className="mt-2 text-xs">
-                    Customizable
-                  </Badge>
-                )}
-              </div>
-            </Card>
-          ))}
+  if (tablesExist === null) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Checking database connection...</p>
         </div>
       </div>
+    );
+  }
 
-      {/* Cart Section */}
-      <div className="w-96 bg-card border-l border-border shadow-elevated">
-        <div className="p-6 border-b border-border">
-          <h2 className="text-xl font-bold text-foreground">Current Order</h2>
-        </div>
-
-        <ScrollArea className="flex-1 p-4 h-[calc(100vh-200px)]">
-          {cart.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              <Coffee className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No items in cart</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {cart.map((item) => (
-                <Card key={item.id} className="p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-foreground">{item.name}</h4>
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Main Content with Tabs */}
+      <div className="flex-1">
+        <Tabs defaultValue="pos" className="h-full">
+          <div className="border-b border-border p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-2xl font-bold text-foreground">Point of Sale</h1>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Today's Cash</p>
+                  <p className="text-lg font-bold text-coffee-gold">${currentCashTotal.toFixed(2)}</p>
+                </div>
+                {!currentShift && (
+                  <Button
+                    onClick={() => setStartShiftDialogOpen(true)}
+                    className="gap-2 bg-gradient-coffee hover:opacity-90"
+                  >
+                    <Clock className="h-4 w-4" />
+                    Start Shift
+                  </Button>
+                )}
+                {currentShift && (
+                  <div className="flex gap-2">
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFromCart(item.id)}
-                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                      variant="outline"
+                      onClick={() => setCashOutDialogOpen(true)}
+                      className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10"
+                      disabled={currentCashTotal <= 0}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Calculator className="h-4 w-4" />
+                      Cash Out
                     </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleEndShift}
+                      className="gap-2 border-destructive/30 hover:bg-destructive/10"
+                    >
+                      <StopCircle className="h-4 w-4" />
+                      End Shift
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <TabsList className="grid w-full grid-cols-2 max-w-md">
+              <TabsTrigger value="pos">POS System</TabsTrigger>
+              <TabsTrigger value="orders">Open Orders</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="pos" className="flex h-[calc(100vh-140px)] m-0">
+            {/* Menu Section */}
+            <div className="flex-1 p-6">
+              <p className="text-muted-foreground mb-6">
+                {currentShift ? 'Select items to add to the current order' : 'Start a shift to begin taking orders'}
+              </p>
+
+              {/* Category Tabs */}
+              <div className="flex gap-2 mb-6">
+                {categories.map((category) => (
+                  <Button
+                    key={category.id}
+                    variant={selectedCategory === category.id ? "default" : "outline"}
+                    onClick={() => setSelectedCategory(category.id)}
+                    className="gap-2"
+                  >
+                    <category.icon className="h-4 w-4" />
+                    {category.name}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Menu Items Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredItems.map((item) => (
+                  <Card
+                    key={item.id}
+                    className={`p-4 transition-all duration-200 border-2 ${
+                      currentShift 
+                        ? "cursor-pointer hover:shadow-coffee hover:border-coffee-gold/30" 
+                        : "opacity-50 cursor-not-allowed"
+                    }`}
+                    onClick={() => currentShift && addToCart(item)}
+                  >
+                    <div className="text-center">
+                      <div className="h-20 w-20 mx-auto mb-3 rounded-full bg-gradient-cream flex items-center justify-center">
+                        <Coffee className="h-8 w-8 text-coffee-bean" />
+                      </div>
+                      <h3 className="font-semibold text-foreground mb-1">{item.name}</h3>
+                      <p className="text-lg font-bold text-coffee-gold">${item.price.toFixed(2)}</p>
+                      {item.modifiers && (
+                        <Badge variant="secondary" className="mt-2 text-xs">
+                          Customizable
+                        </Badge>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Cart Section */}
+            <div className="w-96 bg-card border-l border-border shadow-elevated">
+              <div className="p-6 border-b border-border">
+                <h2 className="text-xl font-bold text-foreground">Current Order</h2>
+              </div>
+
+              <ScrollArea className="flex-1 p-4 h-[calc(100vh-280px)]">
+                {cart.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    <Coffee className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No items in cart</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {cart.map((item) => (
+                      <Card key={item.id} className="p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-foreground">{item.name}</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFromCart(item.id)}
+                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateQuantity(item.id, -1)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="text-sm font-medium w-8 text-center">{item.quantity}</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateQuantity(item.id, 1)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <p className="font-semibold text-coffee-gold">
+                            ${((item.price + (item.selectedModifiers.length * 0.50)) * item.quantity).toFixed(2)}
+                          </p>
+                        </div>
+
+                        {item.selectedModifiers.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {item.selectedModifiers.map((modifier) => (
+                              <Badge key={modifier} variant="secondary" className="text-xs">
+                                {modifier}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        {item.modifiers && item.modifiers.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full mt-2 h-6 text-xs"
+                            onClick={() => openCustomizeDialog(item)}
+                          >
+                            <Settings className="h-3 w-3 mr-1" />
+                            Customize
+                          </Button>
+                        )}
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+
+              {/* Checkout Section */}
+              <div className="p-4 border-t border-border bg-muted/30">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-foreground">Total:</span>
+                    <span className="text-xl font-bold text-coffee-gold">
+                      ${getTotalPrice().toFixed(2)}
+                    </span>
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, -1)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="text-sm font-medium w-8 text-center">{item.quantity}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, 1)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <p className="font-semibold text-coffee-gold">
-                      ${((item.price + (item.selectedModifiers.length * 0.50)) * item.quantity).toFixed(2)}
-                    </p>
-                  </div>
-
-                  {item.selectedModifiers.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {item.selectedModifiers.map((modifier) => (
-                        <Badge key={modifier} variant="secondary" className="text-xs">
-                          {modifier}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-
-                  {item.modifiers && item.modifiers.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full mt-2 h-6 text-xs"
-                      onClick={() => openCustomizeDialog(item)}
+                  <Separator />
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="gap-2"
+                      onClick={() => processSale('cash')}
+                      disabled={cart.length === 0 || !currentShift}
                     >
-                      <Settings className="h-3 w-3 mr-1" />
-                      Customize
+                      <DollarSign className="h-4 w-4" />
+                      Cash
                     </Button>
-                  )}
-                </Card>
-              ))}
+                    <Button 
+                      className="gap-2 bg-gradient-coffee hover:opacity-90"
+                      onClick={() => processSale('card')}
+                      disabled={cart.length === 0 || !currentShift}
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Card
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </ScrollArea>
+          </TabsContent>
 
-        {/* Checkout Section */}
-        <div className="p-4 border-t border-border bg-muted/30">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="font-semibold text-foreground">Total:</span>
-              <span className="text-xl font-bold text-coffee-gold">
-                ${getTotalPrice().toFixed(2)}
-              </span>
-            </div>
-            
-            <Separator />
-            
-            <div className="grid grid-cols-2 gap-2">
-              <Button 
-                variant="outline" 
-                className="gap-2"
-                onClick={() => processSale('cash')}
-                disabled={cart.length === 0 || !currentShift}
-              >
-                <DollarSign className="h-4 w-4" />
-                Cash
-              </Button>
-              <Button 
-                className="gap-2 bg-gradient-coffee hover:opacity-90"
-                onClick={() => processSale('card')}
-                disabled={cart.length === 0 || !currentShift}
-              >
-                <CreditCard className="h-4 w-4" />
-                Card
-              </Button>
-            </div>
-          </div>
-        </div>
+          <TabsContent value="orders" className="h-[calc(100vh-140px)] m-0">
+            {currentShift ? (
+              <OrderTracker currentShift={currentShift} />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Start a shift to view orders</p>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Modifier Dialog */}
@@ -555,11 +655,6 @@ const POS = () => {
         onClose={() => setCashOutDialogOpen(false)}
         currentCashTotal={currentCashTotal}
       />
-
-      {/* Order Tracker */}
-      {currentShift && (
-        <OrderTracker currentShift={currentShift} />
-      )}
     </div>
   );
 };
