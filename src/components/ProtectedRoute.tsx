@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import LoginForm from '@/components/auth/LoginForm';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -23,7 +23,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   }
 
   if (!user || !userProfile) {
-    return <LoginForm />;
+    return <Navigate to="/login" replace />;
   }
 
   if (requiredRole && userProfile.role !== requiredRole && userProfile.role !== 'admin') {
