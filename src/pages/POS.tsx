@@ -23,6 +23,7 @@ import {
   Clock,
   StopCircle
 } from "lucide-react";
+import OrderTracker from "@/components/OrderTracker";
 
 interface MenuItem {
   id: string;
@@ -215,7 +216,7 @@ const POS = () => {
       const total = getTotalPrice();
       
       // Record the sale
-      const { error } = await supabase
+      const { error: saleError } = await supabase
         .from('sales')
         .insert([
           {
@@ -227,14 +228,32 @@ const POS = () => {
           },
         ]);
 
-      if (error) {
-        console.error('Sale recording error:', error);
+      if (saleError) {
+        console.error('Sale recording error:', saleError);
         toast({
           variant: "destructive",
           title: "Sale Failed",
           description: "Failed to record the sale.",
         });
         return;
+      }
+
+      // Create order for tracking
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert([
+          {
+            user_id: user.id,
+            shift_id: currentShift?.id || null,
+            items: cart,
+            total_amount: total,
+            status: 'pending',
+            start_time: new Date().toISOString(),
+          },
+        ]);
+
+      if (orderError) {
+        console.error('Order creation error:', orderError);
       }
 
       toast({
@@ -317,15 +336,36 @@ const POS = () => {
                 <p className="text-sm text-muted-foreground">Today's Cash</p>
                 <p className="text-lg font-bold text-coffee-gold">${currentCashTotal.toFixed(2)}</p>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => setCashOutDialogOpen(true)}
-                className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10"
-                disabled={currentCashTotal <= 0}
-              >
-                <Calculator className="h-4 w-4" />
-                Cash Out
-              </Button>
+              {!currentShift && (
+                <Button
+                  onClick={() => setStartShiftDialogOpen(true)}
+                  className="gap-2 bg-gradient-coffee hover:opacity-90"
+                >
+                  <Clock className="h-4 w-4" />
+                  Start Shift
+                </Button>
+              )}
+              {currentShift && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setCashOutDialogOpen(true)}
+                    className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10"
+                    disabled={currentCashTotal <= 0}
+                  >
+                    <Calculator className="h-4 w-4" />
+                    Cash Out
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleEndShift}
+                    className="gap-2 border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <StopCircle className="h-4 w-4" />
+                    End Shift
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
           <p className="text-muted-foreground">
@@ -515,6 +555,11 @@ const POS = () => {
         onClose={() => setCashOutDialogOpen(false)}
         currentCashTotal={currentCashTotal}
       />
+
+      {/* Order Tracker */}
+      {currentShift && (
+        <OrderTracker currentShift={currentShift} />
+      )}
     </div>
   );
 };

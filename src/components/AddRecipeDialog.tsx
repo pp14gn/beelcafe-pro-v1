@@ -82,7 +82,8 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
     try {
       const { data, error } = await supabase
         .from('inventory_items')
-        .select('id, name, unit, current_stock')
+        .select('id, name, unit, current_stock, category')
+        .eq('category', 'food')
         .order('name');
 
       if (error) throw error;

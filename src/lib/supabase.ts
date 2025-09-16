@@ -282,6 +282,44 @@ export type Database = {
           created_at?: string
         }
       }
+      orders: {
+        Row: {
+          id: string
+          user_id: string
+          shift_id: string | null
+          items: any[]
+          total_amount: number
+          status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+          start_time: string
+          completion_time: string | null
+          prep_time_seconds: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          shift_id?: string | null
+          items: any[]
+          total_amount: number
+          status?: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+          start_time?: string
+          completion_time?: string | null
+          prep_time_seconds?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          shift_id?: string | null
+          items?: any[]
+          total_amount?: number
+          status?: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+          start_time?: string
+          completion_time?: string | null
+          prep_time_seconds?: number | null
+          created_at?: string
+        }
+      }
     }
   }
 }
