@@ -16,7 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, Plus, Trash2, Edit3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -38,6 +41,9 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
     servings: "1",
     instructions: "",
   });
+  const [modifiers, setModifiers] = useState<any[]>([]);
+  const [editingModifier, setEditingModifier] = useState<any>(null);
+  const [newModifier, setNewModifier] = useState({ name: "", price: "" });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -53,8 +59,101 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
           ? recipe.instructions.join('\n') 
           : (recipe.instructions || ""),
       });
+      setModifiers(recipe.recipe_modifiers || []);
     }
   }, [recipe]);
+
+  const addModifier = async () => {
+    if (!newModifier.name || !newModifier.price) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('recipe_modifiers')
+        .insert({
+          recipe_id: recipe.id,
+          name: newModifier.name,
+          price: parseFloat(newModifier.price),
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setModifiers([...modifiers, data]);
+      setNewModifier({ name: "", price: "" });
+      
+      toast({
+        title: "Success",
+        description: "Modifier added successfully.",
+      });
+    } catch (error) {
+      console.error("Error adding modifier:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to add modifier.",
+      });
+    }
+  };
+
+  const updateModifier = async (modifierId: string, name: string, price: string) => {
+    try {
+      const { error } = await supabase
+        .from('recipe_modifiers')
+        .update({
+          name: name,
+          price: parseFloat(price)
+        })
+        .eq('id', modifierId);
+
+      if (error) throw error;
+
+      setModifiers(modifiers.map(mod => 
+        mod.id === modifierId 
+          ? { ...mod, name, price: parseFloat(price) }
+          : mod
+      ));
+      setEditingModifier(null);
+      
+      toast({
+        title: "Success",
+        description: "Modifier updated successfully.",
+      });
+    } catch (error) {
+      console.error("Error updating modifier:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update modifier.",
+      });
+    }
+  };
+
+  const deleteModifier = async (modifierId: string) => {
+    try {
+      const { error } = await supabase
+        .from('recipe_modifiers')
+        .delete()
+        .eq('id', modifierId);
+
+      if (error) throw error;
+
+      setModifiers(modifiers.filter(mod => mod.id !== modifierId));
+      
+      toast({
+        title: "Success",
+        description: "Modifier deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting modifier:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete modifier.",
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,6 +290,104 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
               rows={6}
             />
           </div>
+
+          <Separator />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                Recipe Modifiers
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Add new modifier */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Modifier name"
+                  value={newModifier.name}
+                  onChange={(e) => setNewModifier(prev => ({ ...prev, name: e.target.value }))}
+                />
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Price"
+                  value={newModifier.price}
+                  onChange={(e) => setNewModifier(prev => ({ ...prev, price: e.target.value }))}
+                />
+                <Button onClick={addModifier} size="sm">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Existing modifiers */}
+              <div className="space-y-2">
+                {modifiers.map((modifier) => (
+                  <div key={modifier.id} className="flex items-center gap-2 p-2 border rounded">
+                    {editingModifier?.id === modifier.id ? (
+                      <>
+                        <Input
+                          value={editingModifier.name}
+                          onChange={(e) => setEditingModifier(prev => ({ ...prev, name: e.target.value }))}
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={editingModifier.price}
+                          onChange={(e) => setEditingModifier(prev => ({ ...prev, price: e.target.value }))}
+                        />
+                        <Button 
+                          size="sm" 
+                          onClick={() => updateModifier(modifier.id, editingModifier.name, editingModifier.price)}
+                        >
+                          Save
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => setEditingModifier(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1">
+                          <span className="font-medium">{modifier.name}</span>
+                          <Badge variant="secondary" className="ml-2">
+                            ${modifier.price.toFixed(2)}
+                          </Badge>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => setEditingModifier({ 
+                            id: modifier.id, 
+                            name: modifier.name, 
+                            price: modifier.price.toString() 
+                          })}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => deleteModifier(modifier.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {modifiers.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No modifiers added yet. Add your first modifier above.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={onClose}>
