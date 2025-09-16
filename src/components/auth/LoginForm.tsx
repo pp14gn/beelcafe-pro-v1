@@ -4,15 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Coffee, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Coffee, Eye, EyeOff, Loader2, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { createAdminUser } from '@/utils/createAdminUser';
+import { supabase } from '@/lib/supabase';
 
 const LoginForm = () => {
-  const [email, setEmail] = useState('');
+  const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
   const { signIn, user } = useAuth();
   const { toast } = useToast();
 
@@ -21,25 +24,95 @@ const LoginForm = () => {
     return <Navigate to="/" replace />;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
-
-    setLoading(true);
-    const { error } = await signIn(email, password);
+  const handleCreateAdmin = async () => {
+    setCreatingAdmin(true);
+    const result = await createAdminUser();
     
-    if (error) {
+    if (result.success) {
       toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: error.message || 'Invalid email or password',
+        title: 'Admin User Created',
+        description: 'Admin user created successfully! You can now login with username: admin, password: admin',
       });
     } else {
       toast({
-        title: 'Welcome Back!',
-        description: 'You have been successfully logged in.',
+        variant: 'destructive',
+        title: 'Failed to Create Admin',
+        description: result.error || 'Failed to create admin user',
       });
     }
+    setCreatingAdmin(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailOrUsername || !password) return;
+
+    setLoading(true);
+
+    try {
+      let email = emailOrUsername;
+
+      // If input looks like a username (no @), try to find the user by username
+      if (!emailOrUsername.includes('@')) {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('username', emailOrUsername)
+          .single();
+
+        if (userError || !userData) {
+          toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: 'Username not found',
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Get the email from auth.users using the user ID
+        const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userData.id);
+        
+        if (authError || !authUser.user?.email) {
+          // Fallback: try common admin email patterns
+          if (emailOrUsername === 'admin') {
+            email = 'admin@coffeepos.com';
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Login Failed',
+              description: 'Could not resolve username to email',
+            });
+            setLoading(false);
+            return;
+          }
+        } else {
+          email = authUser.user.email;
+        }
+      }
+
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Login Failed',
+          description: error.message || 'Invalid credentials',
+        });
+      } else {
+        toast({
+          title: 'Welcome Back!',
+          description: 'You have been successfully logged in.',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Login Failed',
+        description: 'An unexpected error occurred',
+      });
+    }
+
     setLoading(false);
   };
 
@@ -58,15 +131,40 @@ const LoginForm = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCreateAdmin}
+              disabled={creatingAdmin}
+              className="w-full mb-4 gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10"
+            >
+              {creatingAdmin ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating Admin...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4" />
+                  Create Admin User
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              Click above to create admin user (username: admin, password: admin)
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground">Email</Label>
+              <Label htmlFor="emailOrUsername" className="text-foreground">Email or Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="emailOrUsername"
+                type="text"
+                placeholder="Enter your email or username"
+                value={emailOrUsername}
+                onChange={(e) => setEmailOrUsername(e.target.value)}
                 required
                 className="bg-background border-border"
               />
@@ -101,7 +199,7 @@ const LoginForm = () => {
             <Button
               type="submit"
               className="w-full bg-gradient-coffee hover:opacity-90"
-              disabled={loading || !email || !password}
+              disabled={loading || !emailOrUsername || !password}
             >
               {loading ? (
                 <>
