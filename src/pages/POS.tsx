@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import ModifierDialog from "@/components/ModifierDialog";
 import { 
   Coffee, 
   Plus, 
@@ -31,6 +32,8 @@ interface OrderItem extends MenuItem {
 const POS = () => {
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("coffee");
+  const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<OrderItem | null>(null);
 
   const menuItems: MenuItem[] = [
     { id: "1", name: "Espresso", price: 2.50, category: "coffee" },
@@ -76,8 +79,24 @@ const POS = () => {
     setCart(cart.filter(item => item.id !== id));
   };
 
+  const updateCartItemModifiers = (itemId: string, selectedModifiers: string[]) => {
+    setCart(cart.map(item =>
+      item.id === itemId
+        ? { ...item, selectedModifiers }
+        : item
+    ));
+  };
+
+  const openCustomizeDialog = (item: OrderItem) => {
+    setSelectedItem(item);
+    setCustomizeDialogOpen(true);
+  };
+
   const getTotalPrice = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return cart.reduce((total, item) => {
+      const modifierCost = item.selectedModifiers.length * 0.50; // $0.50 per modifier
+      return total + ((item.price + modifierCost) * item.quantity);
+    }, 0);
   };
 
   const filteredItems = menuItems.filter(item => item.category === selectedCategory);
@@ -180,19 +199,26 @@ const POS = () => {
                       </Button>
                     </div>
                     <p className="font-semibold text-coffee-gold">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      ${((item.price + (item.selectedModifiers.length * 0.50)) * item.quantity).toFixed(2)}
                     </p>
                   </div>
+
+                  {item.selectedModifiers.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {item.selectedModifiers.map((modifier) => (
+                        <Badge key={modifier} variant="secondary" className="text-xs">
+                          {modifier}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
 
                   {item.modifiers && item.modifiers.length > 0 && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="w-full mt-2 h-6 text-xs"
-                      onClick={() => {
-                        console.log("Opening modifiers for:", item.name);
-                        // TODO: Open modifier selection dialog
-                      }}
+                      onClick={() => openCustomizeDialog(item)}
                     >
                       <Settings className="h-3 w-3 mr-1" />
                       Customize
@@ -248,6 +274,16 @@ const POS = () => {
           </div>
         </div>
       </div>
+
+      {/* Modifier Dialog */}
+      {selectedItem && (
+        <ModifierDialog
+          isOpen={customizeDialogOpen}
+          onClose={() => setCustomizeDialogOpen(false)}
+          item={selectedItem}
+          onConfirm={updateCartItemModifiers}
+        />
+      )}
     </div>
   );
 };
