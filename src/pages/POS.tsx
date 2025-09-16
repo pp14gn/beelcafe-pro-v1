@@ -52,44 +52,96 @@ const POS = () => {
   const [currentCashTotal, setCurrentCashTotal] = useState(0);
   const [currentShift, setCurrentShift] = useState<any>(null);
   const [shiftSummary, setShiftSummary] = useState({ sales: 0, cashOuts: 0 });
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [isLoadingMenu, setIsLoadingMenu] = useState(true);
+  const [availableCategories, setAvailableCategories] = useState<{id: string, name: string, icon: any}[]>([]);
 
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Sample menu items
-  const menuItems: MenuItem[] = [
-    // Coffee items
-    { id: '1', name: 'Espresso', price: 2.50, category: 'coffee', modifiers: ['Extra Shot', 'Decaf'] },
-    { id: '2', name: 'Americano', price: 3.00, category: 'coffee', modifiers: ['Extra Shot', 'Decaf'] },
-    { id: '3', name: 'Latte', price: 4.50, category: 'coffee', modifiers: ['Extra Shot', 'Oat Milk', 'Almond Milk', 'Vanilla Syrup'] },
-    { id: '4', name: 'Cappuccino', price: 4.00, category: 'coffee', modifiers: ['Extra Shot', 'Oat Milk', 'Almond Milk'] },
-    { id: '5', name: 'Mocha', price: 5.00, category: 'coffee', modifiers: ['Extra Shot', 'Oat Milk', 'Whipped Cream'] },
-    
-    // Food items
-    { id: '6', name: 'Croissant', price: 3.50, category: 'food' },
-    { id: '7', name: 'Muffin', price: 2.75, category: 'food' },
-    { id: '8', name: 'Bagel', price: 2.50, category: 'food', modifiers: ['Cream Cheese', 'Butter'] },
-    { id: '9', name: 'Sandwich', price: 8.50, category: 'food' },
-    
-    // Beverages
-    { id: '10', name: 'Hot Tea', price: 2.25, category: 'beverages' },
-    { id: '11', name: 'Iced Tea', price: 2.50, category: 'beverages' },
-    { id: '12', name: 'Smoothie', price: 5.75, category: 'beverages' },
-    { id: '13', name: 'Fresh Juice', price: 4.25, category: 'beverages' },
-  ];
-
-  const categories = [
-    { id: 'coffee', name: 'Coffee', icon: Coffee },
-    { id: 'food', name: 'Food', icon: Coffee },
-    { id: 'beverages', name: 'Beverages', icon: Coffee },
-  ];
+  const categoryIcons = {
+    coffee: Coffee,
+    food: Coffee, // You can import different icons for different categories
+    beverages: Coffee,
+    // Add more category mappings as needed
+  };
 
   const filteredItems = menuItems.filter(item => item.category === selectedCategory);
 
   useEffect(() => {
     loadCurrentShift();
     loadCurrentCashTotal();
+    loadMenuItems();
   }, [user]);
+
+  const loadMenuItems = async () => {
+    try {
+      setIsLoadingMenu(true);
+      
+      const { data: recipes, error: recipesError } = await supabase
+        .from('recipes')
+        .select(`
+          id,
+          name,
+          base_price,
+          category,
+          is_active,
+          recipe_modifiers (
+            id,
+            name,
+            price,
+            is_active
+          )
+        `)
+        .eq('is_active', true);
+
+      if (recipesError) {
+        console.error('Error loading recipes:', recipesError);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load menu items.",
+        });
+        return;
+      }
+
+      const formattedMenuItems: MenuItem[] = recipes?.map(recipe => ({
+        id: recipe.id,
+        name: recipe.name,
+        price: Number(recipe.base_price),
+        category: recipe.category,
+        modifiers: recipe.recipe_modifiers
+          ?.filter(modifier => modifier.is_active)
+          ?.map(modifier => modifier.name) || []
+      })) || [];
+
+      setMenuItems(formattedMenuItems);
+
+      // Get unique categories from recipes
+      const uniqueCategories = [...new Set(formattedMenuItems.map(item => item.category))];
+      const formattedCategories = uniqueCategories.map(category => ({
+        id: category,
+        name: category.charAt(0).toUpperCase() + category.slice(1),
+        icon: categoryIcons[category as keyof typeof categoryIcons] || Coffee
+      }));
+      
+      setAvailableCategories(formattedCategories);
+      
+      // Set the first category as selected if none is selected or if selected category doesn't exist
+      if (!selectedCategory || !uniqueCategories.includes(selectedCategory)) {
+        setSelectedCategory(uniqueCategories[0] || 'coffee');
+      }
+    } catch (error) {
+      console.error('Error loading menu items:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load menu items.",
+      });
+    } finally {
+      setIsLoadingMenu(false);
+    }
+  };
 
   const loadCurrentShift = async () => {
     if (!user) return;
@@ -392,7 +444,7 @@ const POS = () => {
 
               {/* Category Tabs */}
               <div className="flex gap-2 mb-4 lg:mb-6 overflow-x-auto pb-2">
-                {categories.map((category) => (
+                {availableCategories.map((category) => (
                   <Button
                     key={category.id}
                     variant={selectedCategory === category.id ? "default" : "outline"}
@@ -406,32 +458,51 @@ const POS = () => {
               </div>
 
               {/* Menu Items Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
-                {filteredItems.map((item) => (
-                  <Card
-                    key={item.id}
-                    className={`p-3 lg:p-4 transition-all duration-200 border-2 ${
-                      currentShift 
-                        ? "cursor-pointer hover:shadow-coffee hover:border-coffee-gold/30" 
-                        : "opacity-50 cursor-not-allowed"
-                    }`}
-                    onClick={() => currentShift && addToCart(item)}
-                  >
-                    <div className="text-center">
-                      <div className="h-16 w-16 lg:h-20 lg:w-20 mx-auto mb-2 lg:mb-3 rounded-full bg-gradient-cream flex items-center justify-center">
-                        <Coffee className="h-6 w-6 lg:h-8 lg:w-8 text-coffee-bean" />
+              {isLoadingMenu ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+                  {[...Array(8)].map((_, index) => (
+                    <Card key={index} className="p-3 lg:p-4 animate-pulse">
+                      <div className="text-center">
+                        <div className="h-16 w-16 lg:h-20 lg:w-20 mx-auto mb-2 lg:mb-3 rounded-full bg-muted" />
+                        <div className="h-4 bg-muted rounded mb-1" />
+                        <div className="h-5 bg-muted rounded" />
                       </div>
-                      <h3 className="font-semibold text-foreground mb-1 text-sm lg:text-base">{item.name}</h3>
-                      <p className="text-base lg:text-lg font-bold text-coffee-gold">${item.price.toFixed(2)}</p>
-                      {item.modifiers && (
-                        <Badge variant="secondary" className="mt-1 lg:mt-2 text-xs">
-                          Customizable
-                        </Badge>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-              </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : filteredItems.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  <Coffee className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No items available in this category</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+                  {filteredItems.map((item) => (
+                    <Card
+                      key={item.id}
+                      className={`p-3 lg:p-4 transition-all duration-200 border-2 ${
+                        currentShift 
+                          ? "cursor-pointer hover:shadow-coffee hover:border-coffee-gold/30" 
+                          : "opacity-50 cursor-not-allowed"
+                      }`}
+                      onClick={() => currentShift && addToCart(item)}
+                    >
+                      <div className="text-center">
+                        <div className="h-16 w-16 lg:h-20 lg:w-20 mx-auto mb-2 lg:mb-3 rounded-full bg-gradient-cream flex items-center justify-center">
+                          <Coffee className="h-6 w-6 lg:h-8 lg:w-8 text-coffee-bean" />
+                        </div>
+                        <h3 className="font-semibold text-foreground mb-1 text-sm lg:text-base">{item.name}</h3>
+                        <p className="text-base lg:text-lg font-bold text-coffee-gold">${item.price.toFixed(2)}</p>
+                        {item.modifiers && item.modifiers.length > 0 && (
+                          <Badge variant="secondary" className="mt-1 lg:mt-2 text-xs">
+                            Customizable
+                          </Badge>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Desktop Cart Sidebar */}
