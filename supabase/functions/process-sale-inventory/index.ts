@@ -39,7 +39,7 @@ serve(async (req) => {
         continue
       }
 
-      // Deduct inventory for each ingredient
+      // Deduct inventory for each recipe ingredient
       for (const ingredient of recipeIngredients || []) {
         const totalUsed = Number(ingredient.quantity) * item.quantity
         const currentStock = Number(ingredient.inventory_items?.current_stock || 0)
@@ -54,6 +54,39 @@ serve(async (req) => {
           console.error('Error updating inventory:', updateError)
         } else {
           console.log(`Updated ${ingredient.inventory_items?.name}: ${currentStock} -> ${newStock}`)
+        }
+      }
+
+      // Process modifiers if they exist
+      if (item.selectedModifiers) {
+        for (const modifier of item.selectedModifiers) {
+          const modifierQuantity = Number(modifier.quantity) * item.quantity
+          
+          // Get current stock for this modifier inventory item
+          const { data: inventoryItem, error: inventoryError } = await supabase
+            .from('inventory_items')
+            .select('current_stock, name')
+            .eq('id', modifier.inventory_item.id)
+            .single()
+
+          if (inventoryError) {
+            console.error('Error fetching modifier inventory:', inventoryError)
+            continue
+          }
+
+          const currentStock = Number(inventoryItem.current_stock || 0)
+          const newStock = Math.max(0, currentStock - modifierQuantity)
+
+          const { error: updateError } = await supabase
+            .from('inventory_items')
+            .update({ current_stock: newStock })
+            .eq('id', modifier.inventory_item.id)
+
+          if (updateError) {
+            console.error('Error updating modifier inventory:', updateError)
+          } else {
+            console.log(`Updated modifier ${inventoryItem.name}: ${currentStock} -> ${newStock}`)
+          }
         }
       }
     }
