@@ -11,6 +11,7 @@ import ModifierDialog from "@/components/ModifierDialog";
 import CashOutDialog from "@/components/CashOutDialog";
 import StartShiftDialog from "@/components/StartShiftDialog";
 import InventoryWarningDialog from "@/components/InventoryWarningDialog";
+import CardPaymentDialog from "@/components/CardPaymentDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -69,6 +70,7 @@ const POS = () => {
   const [customizeDialogOpen, setCustomizeDialogOpen] = useState(false);
   const [cashOutDialogOpen, setCashOutDialogOpen] = useState(false);
   const [startShiftDialogOpen, setStartShiftDialogOpen] = useState(false);
+  const [cardPaymentDialogOpen, setCardPaymentDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<OrderItem | null>(null);
   const [currentCashTotal, setCurrentCashTotal] = useState(0);
   const [currentShift, setCurrentShift] = useState<any>(null);
@@ -873,11 +875,14 @@ const POS = () => {
                         <DollarSign className="h-4 w-4" />
                         Cash
                       </Button>
-                      <Button 
-                        className="gap-2 bg-gradient-coffee hover:opacity-90"
-                      onClick={() => processSale('card')}
-                      disabled={cart.length === 0 || !currentShift}
-                      >
+        <Button 
+          className="gap-2 bg-gradient-coffee hover:opacity-90"
+          onClick={() => {
+            if (cart.length === 0 || !currentShift) return;
+            setCardPaymentDialogOpen(true);
+          }}
+          disabled={cart.length === 0 || !currentShift}
+        >
                         <CreditCard className="h-4 w-4" />
                         Card
                       </Button>
@@ -925,7 +930,10 @@ const POS = () => {
               </Button>
               <Button 
                 className="gap-2 bg-gradient-coffee hover:opacity-90"
-                onClick={() => processSale('card')}
+                onClick={() => {
+                  if (cart.length === 0 || !currentShift) return;
+                  setCardPaymentDialogOpen(true);
+                }}
                 disabled={cart.length === 0 || !currentShift}
               >
                 <CreditCard className="h-4 w-4" />
@@ -936,7 +944,59 @@ const POS = () => {
         </div>
       )}
 
-      {/* Modifier Dialog */}
+      {/* Card Payment Dialog */}
+      <CardPaymentDialog
+        isOpen={cardPaymentDialogOpen}
+        onClose={() => setCardPaymentDialogOpen(false)}
+        onSuccess={(paymentId: string) => {
+          console.log('Card payment successful:', paymentId);
+          
+          // Print receipt if enabled
+          if (settings.autoPrintReceipts) {
+            receiptPrinter.printReceipt({
+              storeName: settings.storeName,
+              storeAddress: settings.storeAddress,
+              storePhone: settings.storePhone,
+              items: cart.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price + item.selectedModifiers.reduce((sum, mod) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0),
+                selectedModifiers: item.selectedModifiers,
+              })),
+              total: getTotalPrice(),
+              paymentMethod: 'card',
+              customerName: customerName || undefined,
+              cashier: user?.email || 'Unknown',
+              timestamp: new Date(),
+              receiptNumber: receiptPrinter.generateReceiptNumber(),
+            });
+          }
+
+          // Clear cart and reset
+          setCart([]);
+          setCustomerName("");
+          
+          // Refresh current totals
+          loadCurrentShift();
+          
+          toast({
+            title: "Sale Completed",
+            description: `Card payment of $${getTotalPrice().toFixed(2)} processed successfully.`,
+          });
+        }}
+        total={getTotalPrice()}
+        items={cart.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price + item.selectedModifiers.reduce((sum, mod) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0),
+          modifiers: item.selectedModifiers,
+        }))}
+        customerName={customerName}
+        userId={user?.id || ''}
+        shiftId={currentShift?.id}
+      />
+
+      {/* Existing Dialogs */}
       {selectedItem && (
         <ModifierDialog
           isOpen={customizeDialogOpen}
