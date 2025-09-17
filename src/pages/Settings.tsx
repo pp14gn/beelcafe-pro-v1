@@ -4,6 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { useSettings } from "@/hooks/useSettings";
+import { receiptPrinter } from "@/utils/receiptPrinter";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Settings as SettingsIcon, 
   Store, 
@@ -15,6 +18,44 @@ import {
 } from "lucide-react";
 
 const Settings = () => {
+  const { settings, updateSettings, resetToDefaults, isLoading } = useSettings();
+  const { toast } = useToast();
+
+  const handleSaveChanges = () => {
+    // Update receipt printer settings
+    receiptPrinter.setAutoPrint(settings.autoPrintReceipts);
+    
+    toast({
+      title: "Settings Saved",
+      description: "Your settings have been saved successfully.",
+    });
+  };
+
+  const handleResetDefaults = () => {
+    resetToDefaults();
+    receiptPrinter.setAutoPrint(true);
+    
+    toast({
+      title: "Settings Reset",
+      description: "Settings have been reset to defaults.",
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-muted rounded w-1/4"></div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-64 bg-muted rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -39,22 +80,38 @@ const Settings = () => {
           <div className="space-y-4">
             <div>
               <Label htmlFor="storeName">Store Name</Label>
-              <Input id="storeName" defaultValue="Coffee Roasters & Co." />
+              <Input 
+                id="storeName" 
+                value={settings.storeName}
+                onChange={(e) => updateSettings({ storeName: e.target.value })}
+              />
             </div>
             
             <div>
               <Label htmlFor="storeAddress">Address</Label>
-              <Input id="storeAddress" defaultValue="123 Main Street, Coffee City" />
+              <Input 
+                id="storeAddress" 
+                value={settings.storeAddress}
+                onChange={(e) => updateSettings({ storeAddress: e.target.value })}
+              />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="storePhone">Phone</Label>
-                <Input id="storePhone" defaultValue="(555) 123-4567" />
+                <Input 
+                  id="storePhone" 
+                  value={settings.storePhone}
+                  onChange={(e) => updateSettings({ storePhone: e.target.value })}
+                />
               </div>
               <div>
                 <Label htmlFor="storeEmail">Email</Label>
-                <Input id="storeEmail" defaultValue="info@coffeeroasters.com" />
+                <Input 
+                  id="storeEmail" 
+                  value={settings.storeEmail}
+                  onChange={(e) => updateSettings({ storeEmail: e.target.value })}
+                />
               </div>
             </div>
           </div>
@@ -78,7 +135,13 @@ const Settings = () => {
                 <Label>Auto-print receipts</Label>
                 <p className="text-sm text-muted-foreground">Automatically print receipts after payment</p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                checked={settings.autoPrintReceipts}
+                onCheckedChange={(checked) => {
+                  updateSettings({ autoPrintReceipts: checked });
+                  receiptPrinter.setAutoPrint(checked);
+                }}
+              />
             </div>
 
             <Separator />
@@ -88,7 +151,10 @@ const Settings = () => {
                 <Label>Sound notifications</Label>
                 <p className="text-sm text-muted-foreground">Play sounds for orders and alerts</p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                checked={settings.soundNotifications}
+                onCheckedChange={(checked) => updateSettings({ soundNotifications: checked })}
+              />
             </div>
 
             <Separator />
@@ -98,7 +164,10 @@ const Settings = () => {
                 <Label>Low stock alerts</Label>
                 <p className="text-sm text-muted-foreground">Alert when inventory is running low</p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                checked={settings.lowStockAlerts}
+                onCheckedChange={(checked) => updateSettings({ lowStockAlerts: checked })}
+              />
             </div>
           </div>
         </Card>
@@ -121,7 +190,10 @@ const Settings = () => {
                 <Label>Require manager approval for refunds</Label>
                 <p className="text-sm text-muted-foreground">Manager must approve all refunds</p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                checked={settings.requireManagerApproval}
+                onCheckedChange={(checked) => updateSettings({ requireManagerApproval: checked })}
+              />
             </div>
 
             <Separator />
@@ -131,14 +203,21 @@ const Settings = () => {
                 <Label>Auto-logout after inactivity</Label>
                 <p className="text-sm text-muted-foreground">Logout staff after 30 minutes of inactivity</p>
               </div>
-              <Switch />
+              <Switch 
+                checked={settings.autoLogout}
+                onCheckedChange={(checked) => updateSettings({ autoLogout: checked })}
+              />
             </div>
 
             <Separator />
 
             <div>
               <Label htmlFor="backupFreq">Backup Frequency</Label>
-              <Input id="backupFreq" defaultValue="Daily at 2:00 AM" />
+              <Input 
+                id="backupFreq" 
+                value={settings.backupFrequency}
+                onChange={(e) => updateSettings({ backupFrequency: e.target.value })}
+              />
             </div>
           </div>
         </Card>
@@ -194,8 +273,10 @@ const Settings = () => {
 
       {/* Save Button */}
       <div className="flex justify-end gap-4">
-        <Button variant="outline">Reset to Defaults</Button>
-        <Button className="bg-gradient-coffee hover:opacity-90">
+        <Button variant="outline" onClick={handleResetDefaults}>
+          Reset to Defaults
+        </Button>
+        <Button className="bg-gradient-coffee hover:opacity-90" onClick={handleSaveChanges}>
           Save Changes
         </Button>
       </div>

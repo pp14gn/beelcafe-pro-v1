@@ -14,6 +14,8 @@ import InventoryWarningDialog from "@/components/InventoryWarningDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { receiptPrinter } from "@/utils/receiptPrinter";
+import { useSettings } from "@/hooks/useSettings";
 import { 
   Coffee, 
   Plus, 
@@ -83,6 +85,7 @@ const POS = () => {
 
   const { user } = useAuth();
   const { toast } = useToast();
+  const { settings } = useSettings();
 
   const categoryIcons = {
     coffee: Coffee,
@@ -507,6 +510,40 @@ const POS = () => {
         }
       } catch (inventoryError) {
         console.error('Inventory update error:', inventoryError);
+      }
+
+      // Print receipt if enabled
+      if (settings.autoPrintReceipts) {
+        try {
+          const receiptData = {
+            storeName: settings.storeName,
+            storeAddress: settings.storeAddress,
+            storePhone: settings.storePhone,
+            items: cart.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              selectedModifiers: item.selectedModifiers
+            })),
+            total,
+            paymentMethod,
+            customerName: customerName.trim() || undefined,
+            cashier: user?.email || 'Unknown',
+            timestamp: new Date(),
+            receiptNumber: receiptPrinter.generateReceiptNumber()
+          };
+          
+          const printed = await receiptPrinter.printReceipt(receiptData);
+          if (!printed) {
+            toast({
+              variant: "default",
+              title: "Print Warning",
+              description: "Receipt could not be printed automatically.",
+            });
+          }
+        } catch (error) {
+          console.error('Receipt printing error:', error);
+        }
       }
 
       toast({
