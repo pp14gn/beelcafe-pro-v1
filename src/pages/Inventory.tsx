@@ -241,9 +241,18 @@ const Inventory = () => {
                 <Card key={item.id} className="p-4">
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium">{item.name}</h4>
-                        <p className="text-sm text-muted-foreground capitalize">{item.category}</p>
+                      <div className="flex gap-3">
+                        {item.photo_url && (
+                          <img 
+                            src={item.photo_url} 
+                            alt={item.name}
+                            className="w-12 h-12 object-cover rounded-lg border"
+                          />
+                        )}
+                        <div>
+                          <h4 className="font-medium">{item.name}</h4>
+                          <p className="text-sm text-muted-foreground capitalize">{item.category}</p>
+                        </div>
                       </div>
                       {getStatusBadge(status)}
                     </div>
@@ -301,7 +310,7 @@ const Inventory = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Item Name</TableHead>
+                <TableHead>Item</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Current Stock</TableHead>
                 <TableHead>Min Stock</TableHead>
@@ -318,7 +327,18 @@ const Inventory = () => {
                 
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {item.photo_url && (
+                          <img 
+                            src={item.photo_url} 
+                            alt={item.name}
+                            className="w-10 h-10 object-cover rounded-lg border"
+                          />
+                        )}
+                        <span className="font-medium">{item.name}</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="capitalize">{item.category}</TableCell>
                     <TableCell>
                       <span className={status === "critical" ? "text-destructive font-semibold" : ""}>

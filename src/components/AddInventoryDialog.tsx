@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, Upload, X } from "lucide-react";
 
 interface AddInventoryDialogProps {
   isOpen: boolean;
@@ -28,6 +28,9 @@ interface AddInventoryDialogProps {
 
 const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogProps) => {
   const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -59,11 +62,61 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
     { value: "boxes", label: "Boxes" },
   ];
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photoFile) return null;
+
+    setUploadingPhoto(true);
+    try {
+      const fileExt = photoFile.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('inventory-photos')
+        .upload(filePath, photoFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('inventory-photos')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      throw error;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      let photoUrl = null;
+      if (photoFile) {
+        photoUrl = await uploadPhoto();
+      }
+
       const { error } = await supabase
         .from('inventory_items')
         .insert([
@@ -75,6 +128,7 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
             unit: formData.unit,
             cost_per_unit: parseFloat(formData.cost_per_unit),
             supplier: formData.supplier,
+            photo_url: photoUrl,
             last_restocked: new Date().toISOString(),
           }
         ]);
@@ -96,6 +150,7 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
         cost_per_unit: "",
         supplier: "",
       });
+      removePhoto();
 
       onSuccess();
       onClose();
@@ -121,6 +176,7 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
       cost_per_unit: "",
       supplier: "",
     });
+    removePhoto();
     onClose();
   };
 
@@ -238,15 +294,53 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="photo">Item Photo (Optional)</Label>
+            {photoPreview ? (
+              <div className="space-y-2">
+                <div className="relative">
+                  <img 
+                    src={photoPreview} 
+                    alt="Preview" 
+                    className="w-full h-32 object-cover rounded-lg border"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="absolute top-2 right-2"
+                    onClick={removePhoto}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <Label htmlFor="photo-upload" className="cursor-pointer">
+                  <span className="text-sm text-muted-foreground">Click to upload a photo</span>
+                </Label>
+                <Input
+                  id="photo-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-2 pt-4">
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? (
+            <Button type="submit" disabled={loading || uploadingPhoto} className="flex-1">
+              {loading || uploadingPhoto ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Adding...
+                  {uploadingPhoto ? "Uploading..." : "Adding..."}
                 </>
               ) : (
                 "Add Item"

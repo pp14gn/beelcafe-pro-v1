@@ -69,6 +69,7 @@ export type Database = {
           last_restocked: string | null
           min_stock: number
           name: string
+          photo_url: string | null
           supplier: string | null
           unit: string
           updated_at: string
@@ -82,6 +83,7 @@ export type Database = {
           last_restocked?: string | null
           min_stock?: number
           name: string
+          photo_url?: string | null
           supplier?: string | null
           unit: string
           updated_at?: string
@@ -95,6 +97,7 @@ export type Database = {
           last_restocked?: string | null
           min_stock?: number
           name?: string
+          photo_url?: string | null
           supplier?: string | null
           unit?: string
           updated_at?: string
