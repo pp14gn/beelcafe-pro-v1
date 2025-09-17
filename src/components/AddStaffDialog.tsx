@@ -44,8 +44,7 @@ const AddStaffDialog = ({ isOpen, onClose, onSuccess }: AddStaffDialogProps) => 
   const { toast } = useToast();
 
   const roles = [
-    { value: "barista", label: "Barista" },
-    { value: "shift_lead", label: "Shift Lead" },
+    { value: "cashier", label: "Cashier" },
     { value: "manager", label: "Manager" },
     { value: "admin", label: "Admin" },
   ];
@@ -60,8 +59,7 @@ const AddStaffDialog = ({ isOpen, onClose, onSuccess }: AddStaffDialogProps) => 
   ];
 
   const rolePermissions = {
-    barista: ["pos"],
-    shift_lead: ["pos", "inventory", "recipes"],
+    cashier: ["pos"],
     manager: ["pos", "inventory", "recipes", "staff", "analytics"],
     admin: ["pos", "inventory", "recipes", "staff", "analytics", "settings"],
   };
