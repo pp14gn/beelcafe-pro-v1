@@ -16,6 +16,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
   Plus, 
@@ -25,7 +36,8 @@ import {
   DollarSign,
   Edit,
   Shield,
-  Key
+  Key,
+  Trash2
 } from "lucide-react";
 
 interface StaffMember {
@@ -49,6 +61,9 @@ const Staff = () => {
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [staffData, setStaffData] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchStaffData();
@@ -92,6 +107,40 @@ const Staff = () => {
   const handleResetPassword = (staff: StaffMember) => {
     setSelectedStaff(staff);
     setResetPasswordDialogOpen(true);
+  };
+
+  const handleDeleteStaff = (staff: StaffMember) => {
+    setStaffToDelete(staff);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteStaff = async () => {
+    if (!staffToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', staffToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Staff Member Deleted",
+        description: `${staffToDelete.name} has been removed from the system.`,
+      });
+
+      fetchStaffData(); // Reload staff data
+      setDeleteDialogOpen(false);
+      setStaffToDelete(null);
+    } catch (error: any) {
+      console.error('Error deleting staff member:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete staff member. Please try again.",
+      });
+    }
   };
 
   const getPermissionsByRole = (role: string): string[] => {
@@ -309,6 +358,15 @@ const Staff = () => {
                       <Key className="h-3 w-3" />
                       Reset Password
                     </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => handleDeleteStaff(staff)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Delete
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -349,6 +407,27 @@ const Staff = () => {
         }}
         staffMember={selectedStaff}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {staffToDelete?.name}? This action cannot be undone and will permanently remove this staff member from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setStaffToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteStaff}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
