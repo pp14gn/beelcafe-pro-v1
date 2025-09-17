@@ -15,9 +15,6 @@ interface PaymentRequest {
   description: string;
   email?: string;
   installments?: number;
-  payment_method_id: string;
-  token: string;
-  issuer_id?: string;
   user_id: string;
   shift_id?: string;
   items: any[];
@@ -40,22 +37,41 @@ const handler = async (req: Request): Promise<Response> => {
     const paymentData: PaymentRequest = await req.json();
     console.log('Processing card payment:', paymentData);
 
-    // Create payment with MercadoPago
+    // Create order with MercadoPago Point API
     const mercadoPagoPayload = {
-      transaction_amount: paymentData.amount,
-      token: paymentData.token,
-      description: paymentData.description,
-      installments: paymentData.installments || 1,
-      payment_method_id: paymentData.payment_method_id,
-      issuer_id: paymentData.issuer_id,
+      type: "on-device",
+      processing_mode: "automatic",
+      intent: "capture",
       payer: {
         email: paymentData.email || 'customer@example.com',
       },
+      order: {
+        type: "payment_order",
+        preference: {
+          items: [{
+            id: "item-ID-1234",
+            title: paymentData.description,
+            category_id: "others",
+            quantity: 1,
+            unit_price: paymentData.amount,
+          }],
+          back_urls: {
+            success: "https://success.com/success",
+            failure: "https://failure.com/failure",
+            pending: "https://pending.com/pending"
+          },
+          auto_return: "approved",
+          payment_methods: {
+            installments: paymentData.installments || 1,
+            default_installments: paymentData.installments || 1
+          }
+        }
+      }
     };
 
-    console.log('MercadoPago payload:', mercadoPagoPayload);
+    console.log('MercadoPago Point payload:', mercadoPagoPayload);
 
-    const mercadoPagoResponse = await fetch('https://api.mercadopago.com/v1/payments', {
+    const mercadoPagoResponse = await fetch('https://api.mercadopago.com/v1/orders', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${mercadoPagoAccessToken}`,
@@ -79,8 +95,8 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Check if payment was approved
-    if (mercadoPagoResult.status === 'approved') {
+    // Check if order was created successfully
+    if (mercadoPagoResult.id) {
       // Initialize Supabase client
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -123,21 +139,20 @@ const handler = async (req: Request): Promise<Response> => {
 
       return new Response(JSON.stringify({
         success: true,
-        payment_id: mercadoPagoResult.id,
-        status: mercadoPagoResult.status,
-        payment_method: mercadoPagoResult.payment_method_id,
-        transaction_amount: mercadoPagoResult.transaction_amount,
+        order_id: mercadoPagoResult.id,
+        status: mercadoPagoResult.order_status || 'created',
+        qr_code: mercadoPagoResult.qr_code,
+        in_store_order_id: mercadoPagoResult.in_store_order_id,
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else {
-      // Payment was not approved
+      // Order creation failed
       return new Response(JSON.stringify({
         success: false,
-        error: 'Payment not approved',
-        status: mercadoPagoResult.status,
-        status_detail: mercadoPagoResult.status_detail,
+        error: 'Order creation failed',
+        details: mercadoPagoResult,
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
