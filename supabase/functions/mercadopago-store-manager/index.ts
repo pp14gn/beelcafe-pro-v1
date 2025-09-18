@@ -19,7 +19,7 @@ serve(async (req) => {
       throw new Error('MercadoPago access token not configured');
     }
 
-    const baseUrl = 'https://api.mercadopago.com';
+    const baseUrl = 'https://api.mercadopago.com/point/integration-api';
     
     console.log(`Processing store ${action} request`);
 
@@ -59,7 +59,7 @@ serve(async (req) => {
       case 'list': {
         console.log('Listing stores');
         
-        const response = await fetch(`${baseUrl}/stores/search`, {
+        const response = await fetch(`${baseUrl}/stores`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
