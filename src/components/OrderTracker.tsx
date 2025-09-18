@@ -7,13 +7,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import RefundOrderDialog from "@/components/RefundOrderDialog";
 import { 
   Clock, 
   CheckCircle, 
   Circle, 
   Play,
   Coffee,
-  Timer
+  Timer,
+  RotateCcw
 } from "lucide-react";
 
 interface Order {
@@ -37,6 +39,8 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
   const [timers, setTimers] = useState<{ [key: string]: number }>({});
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -67,7 +71,7 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
       }));
       setOrders(allOrders as any[]);
       setActiveOrders(allOrders.filter(order => ['pending', 'in_progress'].includes(order.status as string)) as any[]);
-      setCompletedOrders(allOrders.filter(order => order.status === 'completed') as any[]);
+      setCompletedOrders(allOrders.filter(order => ['completed', 'cancelled'].includes(order.status as string)) as any[]);
 
       // Initialize timers for active orders
       const newTimers: { [key: string]: number } = {};
@@ -152,9 +156,20 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
         return <Badge variant="outline" className="text-blue-600 border-blue-600"><Play className="h-3 w-3 mr-1" />In Progress</Badge>;
       case 'completed':
         return <Badge variant="outline" className="text-green-600 border-green-600"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
+      case 'cancelled':
+        return <Badge variant="outline" className="text-red-600 border-red-600"><RotateCcw className="h-3 w-3 mr-1" />Refunded</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const handleRefundOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setRefundDialogOpen(true);
+  };
+
+  const handleRefundComplete = () => {
+    loadOrders();
   };
 
   const OrderCard = ({ order }: { order: Order }) => (
@@ -197,14 +212,25 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
         </span>
         
         {order.status === 'pending' && (
-          <Button 
-            size="sm"
-            onClick={() => updateOrderStatus(order.id, 'in_progress')}
-            className="bg-gradient-coffee hover:opacity-90"
-          >
-            <Play className="h-3 w-3 mr-1" />
-            Start
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              size="sm"
+              variant="outline"
+              onClick={() => handleRefundOrder(order)}
+              className="border-red-600 text-red-600 hover:bg-red-600/10"
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Refund
+            </Button>
+            <Button 
+              size="sm"
+              onClick={() => updateOrderStatus(order.id, 'in_progress')}
+              className="bg-gradient-coffee hover:opacity-90"
+            >
+              <Play className="h-3 w-3 mr-1" />
+              Start
+            </Button>
+          </div>
         )}
         
         {order.status === 'in_progress' && (
@@ -272,6 +298,15 @@ const OrderTracker = ({ currentShift }: OrderTrackerProps) => {
           </ScrollArea>
         </TabsContent>
       </Tabs>
+
+      {selectedOrder && (
+        <RefundOrderDialog
+          isOpen={refundDialogOpen}
+          onClose={() => setRefundDialogOpen(false)}
+          order={selectedOrder}
+          onRefundComplete={handleRefundComplete}
+        />
+      )}
     </div>
   );
 };
