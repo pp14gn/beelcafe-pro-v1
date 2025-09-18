@@ -15,11 +15,12 @@ serve(async (req) => {
     const { action, store, storeId } = await req.json();
     
     const accessToken = Deno.env.get('MERCADOPAGO_ACCESS_TOKEN');
+    const user_id = Deno.env.get('MERCADOPAGO_POINT_USER_ID')
     if (!accessToken) {
       throw new Error('MercadoPago access token not configured');
     }
 
-    const baseUrl = 'https://api.mercadopago.com/point/integration-api';
+    const baseUrl = 'https://api.mercadopago.com/users/${user_id}';
     
     console.log(`Processing store ${action} request`);
 
