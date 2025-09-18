@@ -37,35 +37,31 @@ const handler = async (req: Request): Promise<Response> => {
     const paymentData: PaymentRequest = await req.json();
     console.log('Processing card payment:', paymentData);
 
-    // Create order with MercadoPago Point API
+    // Create order with MercadoPago Point API according to official documentation
     const mercadoPagoPayload = {
-      type: "on-device",
-      processing_mode: "automatic",
-      intent: "capture",
-      payer: {
-        email: paymentData.email || 'customer@example.com',
+      type: "point",
+      external_reference: `order_${paymentData.user_id}_${Date.now()}`,
+      expiration_time: "PT30M", // 30 minutes expiration
+      transactions: {
+        payments: [{
+          amount: paymentData.amount.toFixed(2)
+        }]
       },
-      order: {
-        type: "payment_order",
-        preference: {
-          items: [{
-            id: "item-ID-1234",
-            title: paymentData.description,
-            category_id: "others",
-            quantity: 1,
-            unit_price: paymentData.amount,
-          }],
-          back_urls: {
-            success: "https://success.com/success",
-            failure: "https://failure.com/failure",
-            pending: "https://pending.com/pending"
-          },
-          auto_return: "approved",
-          payment_methods: {
-            installments: paymentData.installments || 1,
-            default_installments: paymentData.installments || 1
-          }
+      config: {
+        point: {
+          // Note: In production, you should get the actual terminal_id from your terminals
+          // For now, we'll use a placeholder - you'll need to implement terminal selection
+          terminal_id: "TERMINAL_ID_PLACEHOLDER",
+          print_on_terminal: "no_ticket"
+        },
+        payment_method: {
+          default_type: "credit_card"
         }
+      },
+      description: paymentData.description,
+      integration_data: {
+        platform_id: "dev_beelcafe",
+        integrator_id: "dev_beelcafe"
       }
     };
 
