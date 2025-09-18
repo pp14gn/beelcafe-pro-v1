@@ -33,3 +33,12 @@ verify_jwt = false
 
 [functions.point-terminal-manager]
 verify_jwt = false
+
+[functions.process-sale-inventory]
+verify_jwt = false
+
+[functions.mercadopago-store-manager]
+verify_jwt = false
+
+[functions.mercadopago-order-manager]
+verify_jwt = false

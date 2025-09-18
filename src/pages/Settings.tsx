@@ -4,11 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSettings } from "@/hooks/useSettings";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useToast } from "@/hooks/use-toast";
-import { PointPOSManager } from "@/components/PointPOSManager";
-import { PointTerminalManager } from "@/components/PointTerminalManager";
+import { MercadoPagoSettings } from "@/components/MercadoPagoSettings";
 import { 
   Settings as SettingsIcon, 
   Store, 
@@ -67,7 +67,14 @@ const Settings = () => {
         <p className="text-muted-foreground">Configure your coffee shop POS system</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="general">General Settings</TabsTrigger>
+          <TabsTrigger value="mercadopago">MercadoPago Settings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="general" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Store Settings */}
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -273,77 +280,16 @@ const Settings = () => {
           </div>
         </Card>
 
-        {/* MercadoPago Point Configuration */}
-        <Card className="p-6 lg:col-span-2">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-lg bg-coffee-cream/10 flex items-center justify-center">
-              <CreditCard className="h-5 w-5 text-coffee-cream" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">MercadoPago Point Configuration</h3>
-              <p className="text-sm text-muted-foreground">Configure Point API integration</p>
-            </div>
           </div>
+        </TabsContent>
 
-          <div className="space-y-6">
-            {/* Point Settings */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="pointUserId">Point User ID</Label>
-                <Input 
-                  id="pointUserId" 
-                  value={settings.pointUserId}
-                  onChange={(e) => updateSettings({ pointUserId: e.target.value })}
-                  placeholder="Enter your MercadoPago User ID"
-                />
-              </div>
-              <div>
-                <Label htmlFor="pointClientId">Point Client ID</Label>
-                <Input 
-                  id="pointClientId" 
-                  value={settings.pointClientId}
-                  onChange={(e) => updateSettings({ pointClientId: e.target.value })}
-                  placeholder="Enter your Point Client ID"
-                />
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Enable Point Integration</Label>
-                <p className="text-sm text-muted-foreground">Enable MercadoPago Point for card payments</p>
-              </div>
-              <Switch 
-                checked={settings.pointEnabled}
-                onCheckedChange={(checked) => updateSettings({ pointEnabled: checked })}
-              />
-            </div>
-
-            {settings.pointEnabled && (
-              <>
-                <Separator />
-                
-                {/* POS Management */}
-                <PointPOSManager 
-                  selectedPosId={settings.selectedPosId}
-                  onPosSelect={(posId) => updateSettings({ selectedPosId: posId })}
-                />
-
-                <Separator />
-
-                {/* Terminal Management */}
-                <PointTerminalManager 
-                  selectedPosId={settings.selectedPosId}
-                  selectedTerminalId={settings.selectedTerminalId}
-                  onTerminalSelect={(terminalId) => updateSettings({ selectedTerminalId: terminalId })}
-                />
-              </>
-            )}
-          </div>
-        </Card>
-      </div>
+        <TabsContent value="mercadopago" className="space-y-6">
+          <MercadoPagoSettings 
+            settings={settings}
+            updateSettings={updateSettings}
+          />
+        </TabsContent>
+      </Tabs>
 
       {/* Save Button */}
       <div className="flex justify-end gap-4">
