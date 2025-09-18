@@ -18,8 +18,9 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
-import { CreditCard, Loader2 } from "lucide-react";
+import { CreditCard, Loader2, AlertTriangle } from "lucide-react";
 
 interface CardPaymentDialogProps {
   isOpen: boolean;
@@ -49,6 +50,12 @@ const CardPaymentDialog = ({
   });
 
   const { toast } = useToast();
+  const { settings } = useSettings();
+
+  // Check if Point is configured
+  const isPointConfigured = settings.pointEnabled && 
+                          settings.selectedPosId && 
+                          settings.selectedTerminalId;
 
   const handleInputChange = (field: string, value: string) => {
     setCardData(prev => ({ ...prev, [field]: value }));
@@ -92,6 +99,9 @@ const CardPaymentDialog = ({
           user_id: userId,
           shift_id: shiftId,
           items: items,
+          // Point configuration
+          pos_id: settings.selectedPosId,
+          terminal_id: settings.selectedTerminalId,
         },
       });
 
@@ -158,6 +168,18 @@ const CardPaymentDialog = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!isPointConfigured && (
+            <Card className="p-4 bg-destructive/10 border-destructive/20">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <div>
+                  <p className="font-medium">Point Not Configured</p>
+                  <p className="text-sm">Please configure MercadoPago Point in Settings before using card payments.</p>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <Card className="p-4 space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -168,12 +190,17 @@ const CardPaymentDialog = ({
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="customer@example.com"
                 required
+                disabled={!isPointConfigured}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="installments">Installments</Label>
-              <Select value={cardData.installments} onValueChange={(value) => handleInputChange('installments', value)}>
+              <Select 
+                value={cardData.installments} 
+                onValueChange={(value) => handleInputChange('installments', value)}
+                disabled={!isPointConfigured}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -185,13 +212,24 @@ const CardPaymentDialog = ({
                 </SelectContent>
               </Select>
             </div>
+
+            {isPointConfigured && (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>POS: {settings.selectedPosId}</p>
+                <p>Terminal: {settings.selectedTerminalId}</p>
+              </div>
+            )}
           </Card>
 
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
+            <Button 
+              type="submit" 
+              disabled={loading || !isPointConfigured} 
+              className="flex-1"
+            >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />

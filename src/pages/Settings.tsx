@@ -7,6 +7,8 @@ import { Separator } from "@/components/ui/separator";
 import { useSettings } from "@/hooks/useSettings";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useToast } from "@/hooks/use-toast";
+import { PointPOSManager } from "@/components/PointPOSManager";
+import { PointTerminalManager } from "@/components/PointTerminalManager";
 import { 
   Settings as SettingsIcon, 
   Store, 
@@ -14,7 +16,8 @@ import {
   Database,
   Shield,
   Printer,
-  Wifi
+  Wifi,
+  CreditCard
 } from "lucide-react";
 
 const Settings = () => {
@@ -267,6 +270,77 @@ const Settings = () => {
               </div>
               <div className="h-2 w-2 bg-pos-success rounded-full"></div>
             </div>
+          </div>
+        </Card>
+
+        {/* MercadoPago Point Configuration */}
+        <Card className="p-6 lg:col-span-2">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-lg bg-coffee-cream/10 flex items-center justify-center">
+              <CreditCard className="h-5 w-5 text-coffee-cream" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">MercadoPago Point Configuration</h3>
+              <p className="text-sm text-muted-foreground">Configure Point API integration</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {/* Point Settings */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="pointUserId">Point User ID</Label>
+                <Input 
+                  id="pointUserId" 
+                  value={settings.pointUserId}
+                  onChange={(e) => updateSettings({ pointUserId: e.target.value })}
+                  placeholder="Enter your MercadoPago User ID"
+                />
+              </div>
+              <div>
+                <Label htmlFor="pointClientId">Point Client ID</Label>
+                <Input 
+                  id="pointClientId" 
+                  value={settings.pointClientId}
+                  onChange={(e) => updateSettings({ pointClientId: e.target.value })}
+                  placeholder="Enter your Point Client ID"
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Enable Point Integration</Label>
+                <p className="text-sm text-muted-foreground">Enable MercadoPago Point for card payments</p>
+              </div>
+              <Switch 
+                checked={settings.pointEnabled}
+                onCheckedChange={(checked) => updateSettings({ pointEnabled: checked })}
+              />
+            </div>
+
+            {settings.pointEnabled && (
+              <>
+                <Separator />
+                
+                {/* POS Management */}
+                <PointPOSManager 
+                  selectedPosId={settings.selectedPosId}
+                  onPosSelect={(posId) => updateSettings({ selectedPosId: posId })}
+                />
+
+                <Separator />
+
+                {/* Terminal Management */}
+                <PointTerminalManager 
+                  selectedPosId={settings.selectedPosId}
+                  selectedTerminalId={settings.selectedTerminalId}
+                  onTerminalSelect={(terminalId) => updateSettings({ selectedTerminalId: terminalId })}
+                />
+              </>
+            )}
           </div>
         </Card>
       </div>

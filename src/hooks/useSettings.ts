@@ -11,6 +11,12 @@ interface Settings {
   requireManagerApproval: boolean;
   autoLogout: boolean;
   backupFrequency: string;
+  // MercadoPago Point Settings
+  pointUserId: string;
+  pointClientId: string;
+  pointEnabled: boolean;
+  selectedPosId: string;
+  selectedTerminalId: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -23,7 +29,13 @@ const DEFAULT_SETTINGS: Settings = {
   lowStockAlerts: true,
   requireManagerApproval: true,
   autoLogout: false,
-  backupFrequency: 'Daily at 2:00 AM'
+  backupFrequency: 'Daily at 2:00 AM',
+  // MercadoPago Point Defaults
+  pointUserId: '',
+  pointClientId: '',
+  pointEnabled: false,
+  selectedPosId: '',
+  selectedTerminalId: ''
 };
 
 export const useSettings = () => {

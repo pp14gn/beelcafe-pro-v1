@@ -18,6 +18,8 @@ interface PaymentRequest {
   user_id: string;
   shift_id?: string;
   items: any[];
+  pos_id?: string;
+  terminal_id?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -37,6 +39,17 @@ const handler = async (req: Request): Promise<Response> => {
     const paymentData: PaymentRequest = await req.json();
     console.log('Processing card payment:', paymentData);
 
+    // Validate required fields for Point API
+    if (!paymentData.terminal_id) {
+      console.error('Terminal ID is required for Point payments');
+      return new Response(JSON.stringify({ 
+        error: 'Terminal ID is required for Point payments. Please configure MercadoPago Point in Settings.' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Create order with MercadoPago Point API according to official documentation
     const mercadoPagoPayload = {
       type: "point",
@@ -49,9 +62,8 @@ const handler = async (req: Request): Promise<Response> => {
       },
       config: {
         point: {
-          // Note: In production, you should get the actual terminal_id from your terminals
-          // For now, we'll use a placeholder - you'll need to implement terminal selection
-          terminal_id: "TERMINAL_ID_PLACEHOLDER",
+          // Use the actual terminal_id from the request
+          terminal_id: paymentData.terminal_id,
           print_on_terminal: "no_ticket"
         },
         payment_method: {
