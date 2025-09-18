@@ -36,7 +36,8 @@ serve(async (req) => {
           body: JSON.stringify({
             name: store.name,
             external_id: store.external_id,
-            business_hours: store.business_hours
+            business_hours: store.business_hours,
+            location: store.location
           })
         });
 
@@ -127,7 +128,8 @@ serve(async (req) => {
           body: JSON.stringify({
             name: store.name,
             external_id: store.external_id,
-            business_hours: store.business_hours
+            business_hours: store.business_hours,
+            location: store.location
           })
         });
 

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { CreateStoreDialog } from "@/components/CreateStoreDialog";
 import { 
   Store, 
   Monitor, 
@@ -37,21 +38,6 @@ export const MercadoPagoSettings = ({ settings, updateSettings }: MercadoPagoSet
   
   const { toast } = useToast();
 
-  // Store form data
-  const [storeForm, setStoreForm] = useState({
-    name: '',
-    external_id: '',
-    business_hours: {
-      monday: [{ open: '08:00', close: '18:00' }],
-      tuesday: [{ open: '08:00', close: '18:00' }],
-      wednesday: [{ open: '08:00', close: '18:00' }],
-      thursday: [{ open: '08:00', close: '18:00' }],
-      friday: [{ open: '08:00', close: '18:00' }],
-      saturday: [{ open: '09:00', close: '17:00' }],
-      sunday: []
-    }
-  });
-
   // POS form data
   const [posForm, setPosForm] = useState({
     name: '',
@@ -59,13 +45,13 @@ export const MercadoPagoSettings = ({ settings, updateSettings }: MercadoPagoSet
     category: 'FOOD_AND_DRINKS'
   });
 
-  const createStore = async () => {
+  const createStore = async (storeData: any) => {
     setIsLoading(true);
     try {
       const response = await supabase.functions.invoke('mercadopago-store-manager', {
         body: {
           action: 'create',
-          store: storeForm
+          store: storeData
         }
       });
 
@@ -76,19 +62,6 @@ export const MercadoPagoSettings = ({ settings, updateSettings }: MercadoPagoSet
         description: "Store created successfully",
       });
 
-      setStoreForm({
-        name: '',
-        external_id: '',
-        business_hours: {
-          monday: [{ open: '08:00', close: '18:00' }],
-          tuesday: [{ open: '08:00', close: '18:00' }],
-          wednesday: [{ open: '08:00', close: '18:00' }],
-          thursday: [{ open: '08:00', close: '18:00' }],
-          friday: [{ open: '08:00', close: '18:00' }],
-          saturday: [{ open: '09:00', close: '17:00' }],
-          sunday: []
-        }
-      });
       setShowCreateStore(false);
       loadStores();
     } catch (error) {
@@ -283,7 +256,7 @@ export const MercadoPagoSettings = ({ settings, updateSettings }: MercadoPagoSet
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setShowCreateStore(!showCreateStore)}
+                onClick={() => setShowCreateStore(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Store
@@ -298,43 +271,13 @@ export const MercadoPagoSettings = ({ settings, updateSettings }: MercadoPagoSet
               </Button>
             </div>
 
-            {/* Create Store Form */}
-            {showCreateStore && (
-              <Card className="p-4 mb-4 bg-muted/50">
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Store Name</Label>
-                      <Input
-                        value={storeForm.name}
-                        onChange={(e) => setStoreForm({...storeForm, name: e.target.value})}
-                        placeholder="Enter store name"
-                      />
-                    </div>
-                    <div>
-                      <Label>External ID</Label>
-                      <Input
-                        value={storeForm.external_id}
-                        onChange={(e) => setStoreForm({...storeForm, external_id: e.target.value})}
-                        placeholder="Enter external ID (optional)"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button onClick={createStore} disabled={isLoading}>
-                      Create Store
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowCreateStore(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            )}
+            {/* Create Store Dialog */}
+            <CreateStoreDialog
+              open={showCreateStore}
+              onOpenChange={setShowCreateStore}
+              onSubmit={createStore}
+              isLoading={isLoading}
+            />
 
             {/* Stores List */}
             <div className="space-y-2">
