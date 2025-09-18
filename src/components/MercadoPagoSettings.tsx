@@ -279,33 +279,52 @@ export const MercadoPagoSettings = ({ settings, updateSettings }: MercadoPagoSet
               isLoading={isLoading}
             />
 
-            {/* Stores List */}
-            <div className="space-y-2">
-              {stores.map((store) => (
-                <div
-                  key={store.id}
-                  className="flex items-center justify-between p-3 border border-border rounded-lg"
-                >
-                  <div>
-                    <p className="font-medium">{store.name}</p>
-                    <p className="text-sm text-muted-foreground">ID: {store.id}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => deleteStore(store.id)}
-                    className="text-destructive hover:text-destructive"
+            {/* Selected Store */}
+            <div className="space-y-4">
+              <div>
+                <Label>Selected Store</Label>
+                <Select value={settings.selectedStoreId || ''} onValueChange={(value) => updateSettings({ selectedStoreId: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a store" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        {store.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Stores List */}
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {stores.map((store) => (
+                  <div
+                    key={store.id}
+                    className="flex items-center justify-between p-3 border border-border rounded-lg"
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              
-              {stores.length === 0 && (
-                <p className="text-center text-muted-foreground py-4">
-                  No stores found. Create one to get started.
-                </p>
-              )}
+                    <div>
+                      <p className="font-medium">{store.name}</p>
+                      <p className="text-sm text-muted-foreground">ID: {store.id}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => deleteStore(store.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                
+                {stores.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">
+                    No stores found. Create one to get started.
+                  </p>
+                )}
+              </div>
             </div>
           </Card>
 

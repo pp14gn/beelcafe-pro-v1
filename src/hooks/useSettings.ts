@@ -15,6 +15,7 @@ interface Settings {
   pointUserId: string;
   pointClientId: string;
   pointEnabled: boolean;
+  selectedStoreId: string;
   selectedPosId: string;
   selectedTerminalId: string;
 }
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS: Settings = {
   pointUserId: '',
   pointClientId: '',
   pointEnabled: false,
+  selectedStoreId: '',
   selectedPosId: '',
   selectedTerminalId: ''
 };
