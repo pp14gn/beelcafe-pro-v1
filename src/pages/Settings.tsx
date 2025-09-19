@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useSettings } from "@/hooks/useSettings";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +18,8 @@ import {
   Shield,
   Printer,
   Wifi,
-  CreditCard
+  CreditCard,
+  Clock
 } from "lucide-react";
 
 const Settings = () => {
@@ -68,8 +70,9 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="general">General Settings</TabsTrigger>
+          <TabsTrigger value="hours">Operating Hours</TabsTrigger>
           <TabsTrigger value="mercadopago">MercadoPago Settings</TabsTrigger>
         </TabsList>
 
@@ -281,6 +284,85 @@ const Settings = () => {
         </Card>
 
           </div>
+        </TabsContent>
+
+        <TabsContent value="hours" className="space-y-6">
+          {/* Operating Hours Settings */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Clock className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Operating Hours</h3>
+                <p className="text-sm text-muted-foreground">Set your store's business hours</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="openTime">Opening Time</Label>
+                  <Input 
+                    id="openTime" 
+                    type="time"
+                    value={settings.openTime}
+                    onChange={(e) => updateSettings({ openTime: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="closeTime">Closing Time</Label>
+                  <Input 
+                    id="closeTime" 
+                    type="time"
+                    value={settings.closeTime}
+                    onChange={(e) => updateSettings({ closeTime: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-base font-medium">Operating Days</Label>
+                <p className="text-sm text-muted-foreground mb-3">Select which days your store is open</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: 'monday', label: 'Monday' },
+                    { id: 'tuesday', label: 'Tuesday' },
+                    { id: 'wednesday', label: 'Wednesday' },
+                    { id: 'thursday', label: 'Thursday' },
+                    { id: 'friday', label: 'Friday' },
+                    { id: 'saturday', label: 'Saturday' },
+                    { id: 'sunday', label: 'Sunday' }
+                  ].map((day) => (
+                    <div key={day.id} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={day.id}
+                        checked={settings.operatingDays.includes(day.id)}
+                        onCheckedChange={(checked) => {
+                          const updatedDays = checked
+                            ? [...settings.operatingDays, day.id]
+                            : settings.operatingDays.filter(d => d !== day.id);
+                          updateSettings({ operatingDays: updatedDays });
+                        }}
+                      />
+                      <Label htmlFor={day.id} className="text-sm font-normal">
+                        {day.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h4 className="font-medium text-foreground mb-2">Automatic Features</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Notification 5 minutes before closing time</li>
+                  <li>• Automatic shift closure 15 minutes after closing time</li>
+                  <li>• Store status display in POS system</li>
+                </ul>
+              </div>
+            </div>
+          </Card>
         </TabsContent>
 
         <TabsContent value="mercadopago" className="space-y-6">

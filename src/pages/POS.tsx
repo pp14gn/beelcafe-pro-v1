@@ -12,6 +12,7 @@ import CashOutDialog from "@/components/CashOutDialog";
 import StartShiftDialog from "@/components/StartShiftDialog";
 import InventoryWarningDialog from "@/components/InventoryWarningDialog";
 import CardPaymentDialog from "@/components/CardPaymentDialog";
+import RealtimeClock from "@/components/RealtimeClock";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -652,38 +653,47 @@ const POS = () => {
         <div className={`border-b border-border p-4 ${isMobile ? 'pb-20' : ''}`}>
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <h1 className="text-xl lg:text-2xl font-bold text-foreground">Point of Sale</h1>
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="text-center sm:text-right">
+            <div className="flex flex-col lg:flex-row items-center gap-4">
+              {/* Real-time Clock */}
+              <RealtimeClock 
+                currentShift={currentShift} 
+                onShiftAutoClose={() => {
+                  setCurrentShift(null);
+                  loadCurrentShift();
+                  loadCurrentCashTotal();
+                }}
+              />
+              <div className="text-center lg:text-right">
                 <p className="text-sm text-muted-foreground">Today's Cash</p>
                 <p className="text-lg font-bold text-coffee-gold">${currentCashTotal.toFixed(2)}</p>
               </div>
               {!currentShift && (
                 <Button
                   onClick={() => setStartShiftDialogOpen(true)}
-                  className="gap-2 bg-gradient-coffee hover:opacity-90 w-full sm:w-auto"
+                  className="gap-2 bg-gradient-coffee hover:opacity-90 w-full lg:w-auto"
                 >
                   <Clock className="h-4 w-4" />
                   Start Shift
                 </Button>
               )}
               {currentShift && (
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="flex gap-2 w-full lg:w-auto">
                   <Button
                     variant="outline"
                     onClick={() => setCashOutDialogOpen(true)}
-                    className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10 flex-1 sm:flex-none"
+                    className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10 flex-1 lg:flex-none"
                     disabled={currentCashTotal <= 0}
                   >
                     <Calculator className="h-4 w-4" />
-                    <span className="hidden sm:inline">Cash Out</span>
+                    <span className="hidden lg:inline">Cash Out</span>
                   </Button>
                   <Button
                     variant="outline"
                     onClick={handleEndShift}
-                    className="gap-2 border-destructive/30 hover:bg-destructive/10 flex-1 sm:flex-none"
+                    className="gap-2 border-destructive/30 hover:bg-destructive/10 flex-1 lg:flex-none"
                   >
                     <StopCircle className="h-4 w-4" />
-                    <span className="hidden sm:inline">End Shift</span>
+                    <span className="hidden lg:inline">End Shift</span>
                   </Button>
                 </div>
               )}

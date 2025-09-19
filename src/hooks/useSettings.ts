@@ -11,6 +11,10 @@ interface Settings {
   requireManagerApproval: boolean;
   autoLogout: boolean;
   backupFrequency: string;
+  // Operating Hours
+  openTime: string;
+  closeTime: string;
+  operatingDays: string[];
   // MercadoPago Point Settings
   pointUserId: string;
   pointClientId: string;
@@ -31,6 +35,10 @@ const DEFAULT_SETTINGS: Settings = {
   requireManagerApproval: true,
   autoLogout: false,
   backupFrequency: 'Daily at 2:00 AM',
+  // Operating Hours Defaults
+  openTime: '08:00',
+  closeTime: '18:00',
+  operatingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
   // MercadoPago Point Defaults
   pointUserId: '',
   pointClientId: '',
