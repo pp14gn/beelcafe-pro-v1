@@ -20,7 +20,8 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Users, Eye, EyeOff } from "lucide-react";
+import { Loader2, Users, Eye, EyeOff, Upload, X } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface AddStaffDialogProps {
   isOpen: boolean;
@@ -38,6 +39,8 @@ const AddStaffDialog = ({ isOpen, onClose, onSuccess }: AddStaffDialogProps) => 
     password: "",
     role: "",
   });
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [picturePreview, setPicturePreview] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
 
   const { signUp } = useAuth();
@@ -86,16 +89,52 @@ const AddStaffDialog = ({ isOpen, onClose, onSuccess }: AddStaffDialogProps) => 
     setFormData(prev => ({ ...prev, password }));
   };
 
+  const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfilePicture(file);
+      const reader = new FileReader();
+      reader.onload = (e) => setPicturePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePicture = () => {
+    setProfilePicture(null);
+    setPicturePreview(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      let pictureUrl = null;
+
+      // Upload profile picture if provided
+      if (profilePicture) {
+        const fileExt = profilePicture.name.split('.').pop();
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('inventory-photos')
+          .upload(`profiles/${fileName}`, profilePicture);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('inventory-photos')
+          .getPublicUrl(`profiles/${fileName}`);
+        
+        pictureUrl = publicUrl;
+      }
+
       // Create auth user and profile
       const { error } = await signUp(formData.email, formData.password, {
         username: formData.username,
         full_name: formData.full_name,
         role: formData.role as any,
+        picture_url: pictureUrl,
       });
 
       if (error) throw error;
@@ -132,6 +171,8 @@ const AddStaffDialog = ({ isOpen, onClose, onSuccess }: AddStaffDialogProps) => 
       role: "",
     });
     setPermissions([]);
+    setProfilePicture(null);
+    setPicturePreview(null);
   };
 
   const handleClose = () => {
@@ -153,6 +194,59 @@ const AddStaffDialog = ({ isOpen, onClose, onSuccess }: AddStaffDialogProps) => 
           {/* Personal Information */}
           <Card className="p-4">
             <h3 className="font-semibold mb-4">Personal Information</h3>
+            
+            {/* Profile Picture */}
+            <div className="space-y-2 mb-4">
+              <Label>Profile Picture</Label>
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  {picturePreview ? (
+                    <AvatarImage src={picturePreview} alt="Profile preview" />
+                  ) : (
+                    <AvatarFallback className="bg-coffee-gold/20 text-coffee-bean text-lg">
+                      {formData.full_name ? formData.full_name.split(' ').map(n => n[0]).join('').slice(0, 2) : 'U'}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <div className="flex-1">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => document.getElementById('picture-upload')?.click()}
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload Picture
+                    </Button>
+                    {picturePreview && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={removePicture}
+                      >
+                        <X className="h-4 w-4" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <input
+                    id="picture-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePictureChange}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recommended: Square image, max 2MB
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="full_name">Full Name</Label>

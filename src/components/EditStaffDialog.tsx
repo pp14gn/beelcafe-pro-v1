@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Upload, X } from "lucide-react";
 
 interface EditStaffDialogProps {
   isOpen: boolean;
@@ -18,6 +20,7 @@ interface EditStaffDialogProps {
     username: string;
     role: string;
     status: "active" | "inactive";
+    picture_url?: string;
   } | null;
 }
 
@@ -26,18 +29,40 @@ const EditStaffDialog = ({ isOpen, onClose, onSuccess, staffMember }: EditStaffD
   const [username, setUsername] = useState(staffMember?.username || "");
   const [role, setRole] = useState(staffMember?.role || "cashier");
   const [isActive, setIsActive] = useState(staffMember?.status === "active");
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [picturePreview, setPicturePreview] = useState<string | null>(null);
+  const [currentPictureUrl, setCurrentPictureUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   // Update state when staffMember changes
-  useState(() => {
+  useEffect(() => {
     if (staffMember) {
       setFullName(staffMember.name);
       setUsername(staffMember.username);
       setRole(staffMember.role);
       setIsActive(staffMember.status === "active");
+      setCurrentPictureUrl(staffMember.picture_url || null);
+      setPicturePreview(null);
+      setProfilePicture(null);
     }
-  });
+  }, [staffMember]);
+
+  const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfilePicture(file);
+      const reader = new FileReader();
+      reader.onload = (e) => setPicturePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePicture = () => {
+    setProfilePicture(null);
+    setPicturePreview(null);
+    setCurrentPictureUrl(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,13 +71,34 @@ const EditStaffDialog = ({ isOpen, onClose, onSuccess, staffMember }: EditStaffD
     setLoading(true);
     
     try {
+      let pictureUrl = currentPictureUrl;
+
+      // Upload new profile picture if provided
+      if (profilePicture) {
+        const fileExt = profilePicture.name.split('.').pop();
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('inventory-photos')
+          .upload(`profiles/${fileName}`, profilePicture);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('inventory-photos')
+          .getPublicUrl(`profiles/${fileName}`);
+        
+        pictureUrl = publicUrl;
+      }
+
       const { error } = await supabase
         .from('users')
         .update({
           full_name: fullName,
           username: username,
           role: role,
-          is_active: isActive
+          is_active: isActive,
+          picture_url: pictureUrl
         })
         .eq('id', staffMember.id);
 
@@ -84,6 +130,60 @@ const EditStaffDialog = ({ isOpen, onClose, onSuccess, staffMember }: EditStaffD
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Profile Picture */}
+          <div className="space-y-2">
+            <Label>Profile Picture</Label>
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                {picturePreview ? (
+                  <AvatarImage src={picturePreview} alt="Profile preview" />
+                ) : currentPictureUrl ? (
+                  <AvatarImage src={currentPictureUrl} alt="Current profile picture" />
+                ) : (
+                  <AvatarFallback className="bg-coffee-gold/20 text-coffee-bean text-lg">
+                    {fullName ? fullName.split(' ').map(n => n[0]).join('').slice(0, 2) : 'U'}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <div className="flex-1">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => document.getElementById('picture-upload-edit')?.click()}
+                  >
+                    <Upload className="h-4 w-4" />
+                    {currentPictureUrl ? 'Change Picture' : 'Upload Picture'}
+                  </Button>
+                  {(picturePreview || currentPictureUrl) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={removePicture}
+                    >
+                      <X className="h-4 w-4" />
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <input
+                  id="picture-upload-edit"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePictureChange}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Recommended: Square image, max 2MB
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="fullName">Full Name</Label>
             <Input

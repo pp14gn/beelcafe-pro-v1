@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import AddStaffDialog from "@/components/AddStaffDialog";
 import EditStaffDialog from "@/components/EditStaffDialog";
@@ -50,6 +50,7 @@ interface StaffMember {
   totalSales: number;
   lastLogin: string;
   permissions: string[];
+  picture_url?: string;
 }
 
 const Staff = () => {
@@ -88,7 +89,8 @@ const Staff = () => {
         hoursWorked: 0, // TODO: Calculate from shifts table
         totalSales: 0, // TODO: Calculate from sales table  
         lastLogin: new Date(user.updated_at).toLocaleString(),
-        permissions: getPermissionsByRole(user.role)
+        permissions: getPermissionsByRole(user.role),
+        picture_url: user.picture_url
       })) || [];
 
       setStaffData(mappedStaff);
@@ -316,9 +318,13 @@ const Staff = () => {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar>
-                      <AvatarFallback className="bg-coffee-gold/20 text-coffee-bean">
-                        {staff.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
+                      {staff.picture_url ? (
+                        <AvatarImage src={staff.picture_url} alt={staff.name} />
+                      ) : (
+                        <AvatarFallback className="bg-coffee-gold/20 text-coffee-bean">
+                          {staff.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      )}
                     </Avatar>
                     <div>
                       <p className="font-medium">{staff.name}</p>

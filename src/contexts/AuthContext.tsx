@@ -8,6 +8,7 @@ interface UserProfile {
   full_name: string;
   role: 'manager' | 'cashier' | 'admin';
   is_active: boolean;
+  picture_url?: string;
 }
 
 interface AuthContextType {
@@ -208,6 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             full_name: userData.full_name || '',
             role: userData.role || 'cashier',
             is_active: true,
+            picture_url: userData.picture_url,
           },
           {
             onConflict: 'id'

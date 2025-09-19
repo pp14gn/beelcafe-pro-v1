@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import beelcafeLogo from '@/assets/beelcafe-logo.png';
 
@@ -79,11 +80,15 @@ const Sidebar = () => {
       {/* User Section */}
       <div className="p-4 space-y-3">
         <div className="flex items-center gap-3 px-4 py-2">
-          <div className="h-8 w-8 rounded-full bg-coffee-gold flex items-center justify-center">
-            <span className="text-sm font-semibold text-coffee-bean">
-              {userProfile?.full_name?.charAt(0) || userProfile?.username?.charAt(0) || 'U'}
-            </span>
-          </div>
+          <Avatar className="h-8 w-8">
+            {userProfile?.picture_url ? (
+              <AvatarImage src={userProfile.picture_url} alt={userProfile.full_name || userProfile.username || 'User'} />
+            ) : (
+              <AvatarFallback className="bg-coffee-gold text-coffee-bean text-sm font-semibold">
+                {userProfile?.full_name?.charAt(0) || userProfile?.username?.charAt(0) || 'U'}
+              </AvatarFallback>
+            )}
+          </Avatar>
           <div>
             <p className="text-sm font-medium text-coffee-cream">
               {userProfile?.full_name || userProfile?.username || 'User'}

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Menu } from "lucide-react";
 import beelcafeLogo from '@/assets/beelcafe-logo.png';
@@ -25,6 +26,15 @@ const MobileHeader = ({ onMenuToggle }: MobileHeaderProps) => {
         </div>
         
         <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8">
+            {userProfile?.picture_url ? (
+              <AvatarImage src={userProfile.picture_url} alt={userProfile.full_name || userProfile.username || 'User'} />
+            ) : (
+              <AvatarFallback className="bg-coffee-gold text-coffee-bean text-sm font-semibold">
+                {userProfile?.full_name?.charAt(0) || userProfile?.username?.charAt(0) || 'U'}
+              </AvatarFallback>
+            )}
+          </Avatar>
           <div className="text-right">
             <p className="text-sm font-medium text-coffee-cream">
               {userProfile?.full_name || userProfile?.username || 'User'}
