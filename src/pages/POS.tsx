@@ -372,6 +372,12 @@ const POS = () => {
         selectedModifiers: []
       };
       setCart([...cart, orderItem]);
+      
+      // If item has modifiers, automatically open customize dialog
+      if (menuItem.modifiers && menuItem.modifiers.length > 0) {
+        setSelectedItem(orderItem);
+        setCustomizeDialogOpen(true);
+      }
     }
   };
 
