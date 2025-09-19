@@ -99,7 +99,7 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
   const updateIngredient = (index: number, field: string, value: string | number) => {
     const updated = [...ingredients];
     if (field === 'inventory_item_id') {
-      const item = inventoryItems.find(i => i.id === value);
+      const item = availableInventoryItems.find(i => i.id === value);
       if (item) {
         updated[index] = { ...updated[index], inventory_item_id: value as string, name: item.name, unit: item.unit };
       }
@@ -355,7 +355,7 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
                           <SelectValue placeholder="Select item" />
                         </SelectTrigger>
                         <SelectContent>
-                          {inventoryItems.map((item) => (
+                          {availableInventoryItems.map((item) => (
                             <SelectItem key={item.id} value={item.id}>
                               {item.name} ({item.unit})
                             </SelectItem>
