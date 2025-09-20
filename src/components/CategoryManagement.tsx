@@ -18,14 +18,14 @@ interface Category {
 }
 
 export const CategoryManagement = () => {
-  const { user } = useAuth();
+  const { userProfile } = useAuth();
   const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = userProfile?.role === 'admin';
 
   useEffect(() => {
     fetchCategories();
