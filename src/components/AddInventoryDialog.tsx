@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,7 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -43,14 +44,26 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
 
   const { toast } = useToast();
 
-  const categories = [
-    { value: "coffee", label: "Coffee" },
-    { value: "dairy", label: "Dairy" },
-    { value: "sweeteners", label: "Sweeteners" },
-    { value: "supplies", label: "Supplies" },
-    { value: "pastries", label: "Pastries" },
-    { value: "food", label: "Food Ingredients" },
-  ];
+  useEffect(() => {
+    if (isOpen) {
+      fetchCategories();
+    }
+  }, [isOpen]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name')
+        .eq('type', 'inventory')
+        .order('name');
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const units = [
     { value: "lbs", label: "Pounds (lbs)" },
@@ -214,8 +227,8 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
+                  <SelectItem key={category.id} value={category.name}>
+                    {category.name}
                   </SelectItem>
                 ))}
               </SelectContent>

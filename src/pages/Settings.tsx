@@ -10,6 +10,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useToast } from "@/hooks/use-toast";
 import { MercadoPagoSettings } from "@/components/MercadoPagoSettings";
+import { CategoryManagement } from "@/components/CategoryManagement";
 import { 
   Settings as SettingsIcon, 
   Store, 
@@ -19,7 +20,8 @@ import {
   Printer,
   Wifi,
   CreditCard,
-  Clock
+  Clock,
+  Tags
 } from "lucide-react";
 
 const Settings = () => {
@@ -70,8 +72,9 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="general">General Settings</TabsTrigger>
+          <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="hours">Operating Hours</TabsTrigger>
           <TabsTrigger value="mercadopago">MercadoPago Settings</TabsTrigger>
         </TabsList>
@@ -284,6 +287,10 @@ const Settings = () => {
         </Card>
 
           </div>
+        </TabsContent>
+
+        <TabsContent value="categories" className="space-y-6">
+          <CategoryManagement />
         </TabsContent>
 
         <TabsContent value="hours" className="space-y-6">

@@ -50,6 +50,7 @@ interface AddRecipeDialogProps {
 
 const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) => {
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [formData, setFormData] = useState({
     name: "",
@@ -68,7 +69,25 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
 
   useEffect(() => {
     loadInventoryItems();
-  }, []);
+    if (isOpen) {
+      fetchCategories();
+    }
+  }, [isOpen]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name')
+        .eq('type', 'recipe')
+        .order('name');
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const loadInventoryItems = async () => {
     try {
@@ -84,13 +103,6 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
       console.error('Error loading inventory items:', error);
     }
   };
-
-  const categories = [
-    { value: "coffee", label: "Coffee" },
-    { value: "food", label: "Food" },
-    { value: "pastries", label: "Pastries" },
-    { value: "beverages", label: "Beverages" },
-  ];
 
   const addIngredient = () => {
     setIngredients([...ingredients, { inventory_item_id: "", quantity: 0, name: "", unit: "" }]);
@@ -273,8 +285,8 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
+                      <SelectItem key={category.id} value={category.name}>
+                        {category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
