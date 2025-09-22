@@ -71,11 +71,17 @@ export const useSettings = () => {
   };
 
   const updateSettings = (newSettings: Partial<Settings>) => {
+    console.log('updateSettings called with:', newSettings);
     const updatedSettings = { ...settings, ...newSettings };
+    console.log('Updated settings will be:', updatedSettings);
     setSettings(updatedSettings);
     
     try {
       localStorage.setItem('posSettings', JSON.stringify(updatedSettings));
+      console.log('Settings saved to localStorage successfully');
+      // Verify it was saved
+      const saved = localStorage.getItem('posSettings');
+      console.log('Verified saved settings:', JSON.parse(saved || '{}'));
     } catch (error) {
       console.error('Error saving settings:', error);
     }
