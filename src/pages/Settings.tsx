@@ -48,6 +48,43 @@ const Settings = () => {
     });
   };
 
+  const handleSetupPrinter = async () => {
+    try {
+      // Test printer connection
+      const testReceiptData = {
+        storeName: settings.storeName,
+        storeAddress: settings.storeAddress,
+        storePhone: settings.storePhone,
+        receiptNumber: 'TEST-001',
+        timestamp: new Date(),
+        items: [
+          {
+            name: 'Test Print Item',
+            quantity: 1,
+            price: 0.00
+          }
+        ],
+        total: 0.00,
+        paymentMethod: 'cash' as const,
+        cashier: 'Test User'
+      };
+
+      // Print test receipt
+      receiptPrinter.printReceipt(testReceiptData);
+
+      toast({
+        title: "Printer Setup",
+        description: "Test receipt sent to printer. Check if it printed correctly.",
+      });
+    } catch (error) {
+      toast({
+        title: "Printer Setup Error",
+        description: "Failed to setup printer. Please check connection and try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -240,14 +277,24 @@ const Settings = () => {
 
         {/* Hardware Settings */}
         <Card className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-lg bg-pos-info/10 flex items-center justify-center">
-              <Printer className="h-5 w-5 text-pos-info" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-pos-info/10 flex items-center justify-center">
+                <Printer className="h-5 w-5 text-pos-info" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Hardware</h3>
+                <p className="text-sm text-muted-foreground">Connected devices and peripherals</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Hardware</h3>
-              <p className="text-sm text-muted-foreground">Connected devices and peripherals</p>
-            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleSetupPrinter()}
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Setup Printer
+            </Button>
           </div>
 
           <div className="space-y-4">
