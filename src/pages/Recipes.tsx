@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import AddRecipeDialog from "@/components/AddRecipeDialog";
 import EditRecipeDialog from "@/components/EditRecipeDialog";
+import { BulkUploadDialog } from "@/components/BulkUploadDialog";
 import { 
   ChefHat, 
   Plus, 
@@ -33,7 +34,8 @@ import {
   Users,
   Settings,
   Edit,
-  Trash2
+  Trash2,
+  Upload
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -70,6 +72,7 @@ const Recipes = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -206,13 +209,23 @@ const Recipes = () => {
           <h1 className="text-2xl font-bold text-foreground">Recipe Manager</h1>
           <p className="text-muted-foreground">Manage recipes, ingredients, and modifiers</p>
         </div>
-        <Button 
-          className="gap-2 bg-gradient-coffee hover:opacity-90"
-          onClick={() => setAddDialogOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Add Recipe
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            className="gap-2"
+            onClick={() => setBulkUploadOpen(true)}
+          >
+            <Upload className="h-4 w-4" />
+            Bulk Upload
+          </Button>
+          <Button 
+            className="gap-2 bg-gradient-coffee hover:opacity-90"
+            onClick={() => setAddDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Add Recipe
+          </Button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -470,6 +483,13 @@ const Recipes = () => {
         onClose={() => setEditDialogOpen(false)}
         onSuccess={handleDialogSuccess}
         recipe={selectedRecipe}
+      />
+
+      {/* Bulk Upload Dialog */}
+      <BulkUploadDialog
+        isOpen={bulkUploadOpen}
+        onClose={() => setBulkUploadOpen(false)}
+        onSuccess={handleDialogSuccess}
       />
 
       {/* Delete Recipe Dialog */}
