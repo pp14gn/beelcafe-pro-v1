@@ -24,6 +24,28 @@ interface ReceiptData {
   receiptNumber: string;
 }
 
+interface CashOutReceiptData {
+  storeName: string;
+  storeAddress: string;
+  storePhone: string;
+  cashier: string;
+  timestamp: Date;
+  receiptNumber: string;
+  amount: number;
+}
+
+interface ShiftCloseReceiptData {
+  storeName: string;
+  storeAddress: string;
+  storePhone: string;
+  cashier: string;
+  timestamp: Date;
+  receiptNumber: string;
+  salesTotal: number;
+  cashOutsTotal: number;
+  netCashTotal: number;
+}
+
 export class ReceiptPrinter {
   private static instance: ReceiptPrinter;
   private autoPrintEnabled = true;
@@ -91,6 +113,135 @@ export class ReceiptPrinter {
     return lines.join('\n');
   }
 
+  private formatCashOutReceiptText(data: CashOutReceiptData): string {
+    const lines: string[] = [];
+    
+    // Header
+    lines.push('========================================');
+    lines.push(`        ${data.storeName.toUpperCase()}`);
+    lines.push(`        ${data.storeAddress}`);
+    lines.push(`        ${data.storePhone}`);
+    lines.push('========================================');
+    lines.push('');
+    lines.push('            CASH OUT RECEIPT');
+    lines.push('');
+    
+    // Receipt info
+    lines.push(`Receipt #: ${data.receiptNumber}`);
+    lines.push(`Date: ${data.timestamp.toLocaleDateString()}`);
+    lines.push(`Time: ${data.timestamp.toLocaleTimeString()}`);
+    lines.push(`Cashier: ${data.cashier}`);
+    lines.push('----------------------------------------');
+    lines.push('');
+    
+    // Cash out details
+    lines.push(`CASH OUT AMOUNT: $${data.amount.toFixed(2)}`);
+    lines.push('');
+    lines.push('----------------------------------------');
+    lines.push('');
+    lines.push('EMPLOYEE SIGNATURE:');
+    lines.push('');
+    lines.push('X_______________________________');
+    lines.push('');
+    lines.push('========================================');
+    
+    return lines.join('\n');
+  }
+
+  private formatShiftCloseReceiptText(data: ShiftCloseReceiptData): string {
+    const lines: string[] = [];
+    
+    // Header
+    lines.push('========================================');
+    lines.push(`        ${data.storeName.toUpperCase()}`);
+    lines.push(`        ${data.storeAddress}`);
+    lines.push(`        ${data.storePhone}`);
+    lines.push('========================================');
+    lines.push('');
+    lines.push('           SHIFT CLOSE RECEIPT');
+    lines.push('');
+    
+    // Receipt info
+    lines.push(`Receipt #: ${data.receiptNumber}`);
+    lines.push(`Date: ${data.timestamp.toLocaleDateString()}`);
+    lines.push(`Time: ${data.timestamp.toLocaleTimeString()}`);
+    lines.push(`Cashier: ${data.cashier}`);
+    lines.push('----------------------------------------');
+    lines.push('');
+    
+    // Shift summary
+    lines.push('SHIFT SUMMARY:');
+    lines.push(`Total Sales: $${data.salesTotal.toFixed(2)}`);
+    lines.push(`Total Cash Outs: $${data.cashOutsTotal.toFixed(2)}`);
+    lines.push('----------------------------------------');
+    lines.push(`NET CASH TOTAL: $${data.netCashTotal.toFixed(2)}`);
+    lines.push('');
+    lines.push('----------------------------------------');
+    lines.push('');
+    lines.push('EMPLOYEE SIGNATURE:');
+    lines.push('');
+    lines.push('X_______________________________');
+    lines.push('');
+    lines.push('========================================');
+    
+    return lines.join('\n');
+  }
+
+  private async printSingleReceipt(receiptText: string, copyNumber: number): Promise<boolean> {
+    try {
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return false;
+
+      const copyText = `Copy ${copyNumber} of 2`;
+      
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Receipt - ${copyText}</title>
+            <style>
+              body {
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                line-height: 1.2;
+                margin: 0;
+                padding: 20px;
+                white-space: pre-wrap;
+              }
+              .copy-indicator {
+                text-align: center;
+                font-weight: bold;
+                margin-bottom: 10px;
+                border: 1px solid #000;
+                padding: 5px;
+              }
+              @media print {
+                body { margin: 0; padding: 0; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="copy-indicator">${copyText}</div>
+            ${receiptText}
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      printWindow.focus();
+      
+      // Add a small delay between copies
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, copyNumber * 500);
+      
+      return true;
+    } catch (error) {
+      console.error('Single receipt print error:', error);
+      return false;
+    }
+  }
+
   async printReceipt(data: ReceiptData): Promise<boolean> {
     if (!this.autoPrintEnabled) {
       console.log('Auto-print disabled');
@@ -109,6 +260,50 @@ export class ReceiptPrinter {
       }
     } catch (error) {
       console.error('Print error:', error);
+      return false;
+    }
+  }
+
+  async printCashOutReceipt(data: CashOutReceiptData): Promise<boolean> {
+    if (!this.autoPrintEnabled) {
+      console.log('Auto-print disabled');
+      return false;
+    }
+
+    const receiptText = this.formatCashOutReceiptText(data);
+    
+    try {
+      // Print 2 copies
+      let success = true;
+      for (let i = 0; i < 2; i++) {
+        const printed = await this.printSingleReceipt(receiptText, i + 1);
+        if (!printed) success = false;
+      }
+      return success;
+    } catch (error) {
+      console.error('Cash out receipt print error:', error);
+      return false;
+    }
+  }
+
+  async printShiftCloseReceipt(data: ShiftCloseReceiptData): Promise<boolean> {
+    if (!this.autoPrintEnabled) {
+      console.log('Auto-print disabled');
+      return false;
+    }
+
+    const receiptText = this.formatShiftCloseReceiptText(data);
+    
+    try {
+      // Print 2 copies
+      let success = true;
+      for (let i = 0; i < 2; i++) {
+        const printed = await this.printSingleReceipt(receiptText, i + 1);
+        if (!printed) success = false;
+      }
+      return success;
+    } catch (error) {
+      console.error('Shift close receipt print error:', error);
       return false;
     }
   }

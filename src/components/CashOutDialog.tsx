@@ -13,6 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSettings } from "@/hooks/useSettings";
+import { receiptPrinter } from "@/utils/receiptPrinter";
 import { DollarSign, Eye, EyeOff, Loader2 } from "lucide-react";
 
 interface CashOutDialogProps {
@@ -28,6 +30,7 @@ const CashOutDialog = ({ isOpen, onClose, currentCashTotal }: CashOutDialogProps
   const [cashOutAmount, setCashOutAmount] = useState(currentCashTotal.toString());
   const { userProfile, user } = useAuth();
   const { toast } = useToast();
+  const { settings } = useSettings();
 
   const handleCashOut = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +75,30 @@ const CashOutDialog = ({ isOpen, onClose, currentCashTotal }: CashOutDialogProps
         });
         setLoading(false);
         return;
+      }
+
+      // Print cash out receipt
+      try {
+        const receiptData = {
+          storeName: settings?.storeName || 'Coffee Shop',
+          storeAddress: settings?.storeAddress || '',
+          storePhone: settings?.storePhone || '',
+          cashier: user?.email || 'Unknown',
+          timestamp: new Date(),
+          receiptNumber: receiptPrinter.generateReceiptNumber(),
+          amount: parseFloat(cashOutAmount)
+        };
+        
+        const printed = await receiptPrinter.printCashOutReceipt(receiptData);
+        if (!printed) {
+          toast({
+            variant: "default",
+            title: "Print Warning",
+            description: "Cash out receipt could not be printed.",
+          });
+        }
+      } catch (error) {
+        console.error('Cash out receipt printing error:', error);
       }
 
       toast({

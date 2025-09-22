@@ -635,6 +635,32 @@ const POS = () => {
         return;
       }
 
+      // Print shift close receipt
+      try {
+        const receiptData = {
+          storeName: settings?.storeName || 'Coffee Shop',
+          storeAddress: settings?.storeAddress || '',
+          storePhone: settings?.storePhone || '',
+          cashier: user?.email || 'Unknown',
+          timestamp: new Date(),
+          receiptNumber: receiptPrinter.generateReceiptNumber(),
+          salesTotal: shiftSummary.sales,
+          cashOutsTotal: shiftSummary.cashOuts,
+          netCashTotal: shiftSummary.sales - shiftSummary.cashOuts
+        };
+        
+        const printed = await receiptPrinter.printShiftCloseReceipt(receiptData);
+        if (!printed) {
+          toast({
+            variant: "default",
+            title: "Print Warning",
+            description: "Shift close receipt could not be printed.",
+          });
+        }
+      } catch (error) {
+        console.error('Shift close receipt printing error:', error);
+      }
+
       setCurrentShift(null);
       setShiftSummary({ sales: 0, cashOuts: 0 });
       toast({
