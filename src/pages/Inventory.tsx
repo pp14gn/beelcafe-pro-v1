@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import AddInventoryDialog from "@/components/AddInventoryDialog";
 import EditInventoryDialog from "@/components/EditInventoryDialog";
 import RestockDialog from "@/components/RestockDialog";
+import InventoryCountDialog from "@/components/InventoryCountDialog";
+import InventoryCountHistoryDialog from "@/components/InventoryCountHistoryDialog";
 import { 
   Table,
   TableBody,
@@ -23,7 +25,8 @@ import {
   TrendingUp,
   Filter,
   Edit,
-  RefreshCw
+  RefreshCw,
+  ClipboardList
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +49,8 @@ const Inventory = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [restockDialogOpen, setRestockDialogOpen] = useState(false);
+  const [countDialogOpen, setCountDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [inventoryData, setInventoryData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,13 +146,32 @@ const Inventory = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Inventory Management</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Monitor stock levels and manage inventory</p>
         </div>
-        <Button 
-          className="gap-2 bg-gradient-coffee hover:opacity-90 w-full sm:w-auto"
-          onClick={() => setAddDialogOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Add Item
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button 
+            variant="outline"
+            size="sm"
+            className="gap-2 w-full sm:w-auto"
+            onClick={() => setHistoryDialogOpen(true)}
+          >
+            <ClipboardList className="h-4 w-4" />
+            View History
+          </Button>
+          <Button 
+            variant="outline"
+            className="gap-2 w-full sm:w-auto"
+            onClick={() => setCountDialogOpen(true)}
+          >
+            <ClipboardList className="h-4 w-4" />
+            Start Count
+          </Button>
+          <Button 
+            className="gap-2 bg-gradient-coffee hover:opacity-90 w-full sm:w-auto"
+            onClick={() => setAddDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Add Item
+          </Button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -399,6 +423,19 @@ const Inventory = () => {
         onClose={() => setRestockDialogOpen(false)}
         onSuccess={handleDialogSuccess}
         item={selectedItem}
+      />
+
+      {/* Inventory Count Dialog */}
+      <InventoryCountDialog
+        isOpen={countDialogOpen}
+        onClose={() => setCountDialogOpen(false)}
+        onSuccess={handleDialogSuccess}
+      />
+
+      {/* Inventory Count History Dialog */}
+      <InventoryCountHistoryDialog
+        isOpen={historyDialogOpen}
+        onClose={() => setHistoryDialogOpen(false)}
       />
     </div>
   );

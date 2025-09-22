@@ -46,6 +46,33 @@ interface ShiftCloseReceiptData {
   netCashTotal: number;
 }
 
+interface InventoryCountReceiptData {
+  storeName: string;
+  storeAddress: string;
+  storePhone: string;
+  counter: string;
+  timestamp: Date;
+  receiptNumber: string;
+  items: {
+    id: string;
+    name: string;
+    category: string;
+    unit: string;
+    systemCount: number;
+    actualCount: number;
+  }[];
+  totalItems: number;
+  discrepanciesCount: number;
+  discrepancies: {
+    id: string;
+    name: string;
+    category: string;
+    unit: string;
+    systemCount: number;
+    actualCount: number;
+  }[];
+}
+
 export class ReceiptPrinter {
   private static instance: ReceiptPrinter;
   private autoPrintEnabled = true;
@@ -187,6 +214,75 @@ export class ReceiptPrinter {
     return lines.join('\n');
   }
 
+  private formatInventoryCountReceiptText(data: InventoryCountReceiptData): string {
+    const lines: string[] = [];
+    
+    // Header
+    lines.push('========================================');
+    lines.push(`        ${data.storeName.toUpperCase()}`);
+    lines.push(`        ${data.storeAddress}`);
+    lines.push(`        ${data.storePhone}`);
+    lines.push('========================================');
+    lines.push('');
+    lines.push('          INVENTORY COUNT REPORT');
+    lines.push('');
+    
+    // Receipt info
+    lines.push(`Receipt #: ${data.receiptNumber}`);
+    lines.push(`Date: ${data.timestamp.toLocaleDateString()}`);
+    lines.push(`Time: ${data.timestamp.toLocaleTimeString()}`);
+    lines.push(`Counter: ${data.counter}`);
+    lines.push('----------------------------------------');
+    lines.push('');
+    
+    // Count details
+    lines.push('COUNT DETAILS:');
+    lines.push('Item                 Sys Act  Diff');
+    lines.push('----------------------------------------');
+    
+    data.items.forEach(item => {
+      const discrepancy = item.actualCount - item.systemCount;
+      const discrepancyStr = discrepancy === 0 ? 'OK' : `${discrepancy > 0 ? '+' : ''}${discrepancy.toFixed(1)}`;
+      const itemName = item.name.length > 18 ? item.name.substring(0, 18) + '.' : item.name;
+      lines.push(`${itemName.padEnd(20)} ${item.systemCount.toString().padStart(3)} ${item.actualCount.toString().padStart(3)} ${discrepancyStr.padStart(5)}`);
+    });
+    
+    lines.push('----------------------------------------');
+    lines.push(`Total Items: ${data.totalItems}`);
+    lines.push(`Discrepancies: ${data.discrepanciesCount}`);
+    lines.push('');
+    
+    // Discrepancies section
+    if (data.discrepancies.length > 0) {
+      lines.push('DISCREPANCIES:');
+      lines.push('----------------------------------------');
+      data.discrepancies.forEach(item => {
+        const discrepancy = item.actualCount - item.systemCount;
+        lines.push(`${item.name}`);
+        lines.push(`  System: ${item.systemCount} ${item.unit}`);
+        lines.push(`  Actual: ${item.actualCount} ${item.unit}`);
+        lines.push(`  Diff: ${discrepancy > 0 ? '+' : ''}${discrepancy} ${item.unit}`);
+        lines.push('');
+      });
+    }
+    
+    lines.push('----------------------------------------');
+    lines.push('');
+    lines.push('COUNTER SIGNATURE:');
+    lines.push('');
+    lines.push('X_______________________________');
+    lines.push('');
+    lines.push('MANAGER APPROVAL:');
+    lines.push('');
+    lines.push('X_______________________________');
+    lines.push('');
+    lines.push('Date: _______________');
+    lines.push('');
+    lines.push('========================================');
+    
+    return lines.join('\n');
+  }
+
   private async printSingleReceipt(receiptText: string, copyNumber: number): Promise<boolean> {
     try {
       const printWindow = window.open('', '_blank');
@@ -304,6 +400,28 @@ export class ReceiptPrinter {
       return success;
     } catch (error) {
       console.error('Shift close receipt print error:', error);
+      return false;
+    }
+  }
+
+  async printInventoryCountReceipt(data: InventoryCountReceiptData): Promise<boolean> {
+    if (!this.autoPrintEnabled) {
+      console.log('Auto-print disabled');
+      return false;
+    }
+
+    const receiptText = this.formatInventoryCountReceiptText(data);
+    
+    try {
+      // Print 2 copies
+      let success = true;
+      for (let i = 0; i < 2; i++) {
+        const printed = await this.printSingleReceipt(receiptText, i + 1);
+        if (!printed) success = false;
+      }
+      return success;
+    } catch (error) {
+      console.error('Inventory count receipt print error:', error);
       return false;
     }
   }

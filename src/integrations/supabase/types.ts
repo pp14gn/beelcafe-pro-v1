@@ -83,6 +83,90 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_count_items: {
+        Row: {
+          actual_count: number
+          count_id: string
+          created_at: string
+          discrepancy: number | null
+          id: string
+          inventory_item_id: string
+          system_count: number
+        }
+        Insert: {
+          actual_count?: number
+          count_id: string
+          created_at?: string
+          discrepancy?: number | null
+          id?: string
+          inventory_item_id: string
+          system_count?: number
+        }
+        Update: {
+          actual_count?: number
+          count_id?: string
+          created_at?: string
+          discrepancy?: number | null
+          id?: string
+          inventory_item_id?: string
+          system_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_count_items_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_count_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_counts: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          discrepancies_count: number
+          id: string
+          notes: string | null
+          status: string
+          total_items: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          discrepancies_count?: number
+          id?: string
+          notes?: string | null
+          status?: string
+          total_items?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          discrepancies_count?: number
+          id?: string
+          notes?: string | null
+          status?: string
+          total_items?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       inventory_items: {
         Row: {
           category: string
