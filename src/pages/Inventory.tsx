@@ -26,10 +26,13 @@ import {
   Filter,
   Edit,
   RefreshCw,
-  ClipboardList
+  ClipboardList,
+  FileText
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface InventoryItem {
   id: string;
@@ -95,6 +98,98 @@ const Inventory = () => {
     loadInventory();
   };
 
+  const generateInventoryReport = () => {
+    try {
+      // Create new PDF document
+      const doc = new jsPDF();
+      
+      // Add title
+      doc.setFontSize(20);
+      doc.setTextColor(40);
+      doc.text('Inventory Report', 20, 30);
+      
+      // Add generation date
+      doc.setFontSize(12);
+      doc.setTextColor(100);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 45);
+      
+      // Calculate totals
+      const totalInventoryValue = inventoryData.reduce((sum, item) => 
+        sum + (item.current_stock * (item.cost_per_unit || 0)), 0
+      );
+      
+      // Add summary section
+      doc.setFontSize(14);
+      doc.setTextColor(40);
+      doc.text('Summary', 20, 65);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(80);
+      doc.text(`Total Items: ${inventoryData.length}`, 25, 80);
+      doc.text(`Critical Stock Items: ${criticalItems.length}`, 25, 90);
+      doc.text(`Low Stock Items: ${lowStockItems.length}`, 25, 100);
+      doc.text(`Total Inventory Value: $${totalInventoryValue.toFixed(2)}`, 25, 110);
+      
+      // Prepare table data
+      const tableData = inventoryData.map(item => [
+        item.name,
+        item.category,
+        `${item.current_stock} ${item.unit}`,
+        `$${(item.cost_per_unit || 0).toFixed(2)}`,
+        `$${(item.current_stock * (item.cost_per_unit || 0)).toFixed(2)}`,
+        getStockStatus(item.current_stock, item.min_stock),
+        item.supplier || 'N/A'
+      ]);
+      
+      // Add table
+      (doc as any).autoTable({
+        head: [['Item Name', 'Category', 'Stock', 'Cost/Unit', 'Total Value', 'Status', 'Supplier']],
+        body: tableData,
+        startY: 125,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [101, 67, 33], // Coffee brown color
+          textColor: [255, 255, 255],
+          fontSize: 10,
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          fontSize: 9,
+          textColor: [50, 50, 50]
+        },
+        columnStyles: {
+          0: { cellWidth: 35 }, // Item Name
+          1: { cellWidth: 25 }, // Category
+          2: { cellWidth: 20 }, // Stock
+          3: { cellWidth: 20 }, // Cost/Unit
+          4: { cellWidth: 25 }, // Total Value
+          5: { cellWidth: 20 }, // Status
+          6: { cellWidth: 30 }  // Supplier
+        },
+        styles: {
+          cellPadding: 3,
+          fontSize: 9,
+          overflow: 'linebreak'
+        }
+      });
+      
+      // Save the PDF
+      doc.save(`inventory-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      
+      toast({
+        title: "Success",
+        description: "Inventory report downloaded successfully!",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to generate inventory report.",
+      });
+    }
+  };
+
   const categories = [
     { id: "all", name: "All Items" },
     { id: "coffee", name: "Coffee" },
@@ -155,6 +250,15 @@ const Inventory = () => {
           >
             <ClipboardList className="h-4 w-4" />
             View History
+          </Button>
+          <Button 
+            variant="outline"
+            size="sm"
+            className="gap-2 w-full sm:w-auto"
+            onClick={generateInventoryReport}
+          >
+            <FileText className="h-4 w-4" />
+            Export PDF
           </Button>
           <Button 
             variant="outline"
