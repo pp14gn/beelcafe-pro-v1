@@ -32,6 +32,7 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [units, setUnits] = useState<Array<{ id: string; name: string; abbreviation: string | null }>>([]);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -47,6 +48,7 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
   useEffect(() => {
     if (isOpen) {
       fetchCategories();
+      fetchUnits();
     }
   }, [isOpen]);
 
@@ -65,15 +67,20 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
     }
   };
 
-  const units = [
-    { value: "lbs", label: "Pounds (lbs)" },
-    { value: "oz", label: "Ounces (oz)" },
-    { value: "gallons", label: "Gallons" },
-    { value: "containers", label: "Containers" },
-    { value: "units", label: "Units" },
-    { value: "bags", label: "Bags" },
-    { value: "boxes", label: "Boxes" },
-  ];
+  const fetchUnits = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('units')
+        .select('id, name, abbreviation')
+        .order('name');
+
+      if (error) throw error;
+      setUnits(data || []);
+    } catch (error) {
+      console.error('Error fetching units:', error);
+    }
+  };
+
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -275,8 +282,8 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
               </SelectTrigger>
               <SelectContent>
                 {units.map((unit) => (
-                  <SelectItem key={unit.value} value={unit.value}>
-                    {unit.label}
+                  <SelectItem key={unit.id} value={unit.name}>
+                    {unit.name} {unit.abbreviation && `(${unit.abbreviation})`}
                   </SelectItem>
                 ))}
               </SelectContent>

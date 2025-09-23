@@ -32,6 +32,8 @@ const EditInventoryDialog = ({ isOpen, onClose, onSuccess, item }: EditInventory
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [units, setUnits] = useState<Array<{ id: string; name: string; abbreviation: string | null }>>([]);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -42,6 +44,13 @@ const EditInventoryDialog = ({ isOpen, onClose, onSuccess, item }: EditInventory
     supplier: "",
   });
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchCategories();
+      fetchUnits();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (item) {
@@ -59,6 +68,35 @@ const EditInventoryDialog = ({ isOpen, onClose, onSuccess, item }: EditInventory
       setPhotoFile(null);
     }
   }, [item]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name')
+        .eq('type', 'inventory')
+        .order('name');
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const fetchUnits = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('units')
+        .select('id, name, abbreviation')
+        .order('name');
+
+      if (error) throw error;
+      setUnits(data || []);
+    } catch (error) {
+      console.error('Error fetching units:', error);
+    }
+  };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -180,11 +218,11 @@ const EditInventoryDialog = ({ isOpen, onClose, onSuccess, item }: EditInventory
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="coffee">Coffee</SelectItem>
-                <SelectItem value="dairy">Dairy</SelectItem>
-                <SelectItem value="sweeteners">Sweeteners</SelectItem>
-                <SelectItem value="supplies">Supplies</SelectItem>
-                <SelectItem value="food">Food</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.name}>
+                    {category.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -219,13 +257,18 @@ const EditInventoryDialog = ({ isOpen, onClose, onSuccess, item }: EditInventory
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="unit">Unit</Label>
-              <Input
-                id="unit"
-                value={formData.unit}
-                onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                placeholder="e.g., lbs, gallons, units"
-                required
-              />
+              <Select value={formData.unit} onValueChange={(value) => setFormData(prev => ({ ...prev, unit: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {units.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.name}>
+                      {unit.name} {unit.abbreviation && `(${unit.abbreviation})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="cost_per_unit">Cost per Unit ($)</Label>
