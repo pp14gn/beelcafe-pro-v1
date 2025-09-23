@@ -395,6 +395,39 @@ export type Database = {
         }
         Relationships: []
       }
+      restock_history: {
+        Row: {
+          cost: number | null
+          created_at: string
+          id: string
+          inventory_item_id: string
+          quantity_added: number
+          restock_order_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string
+          id?: string
+          inventory_item_id: string
+          quantity_added: number
+          restock_order_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string
+          id?: string
+          inventory_item_id?: string
+          quantity_added?: number
+          restock_order_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sales: {
         Row: {
           created_at: string
