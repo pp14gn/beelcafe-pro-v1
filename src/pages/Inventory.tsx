@@ -32,7 +32,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 interface InventoryItem {
   id: string;
@@ -142,7 +142,7 @@ const Inventory = () => {
       ]);
       
       // Add table
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [['Item Name', 'Category', 'Stock', 'Cost/Unit', 'Total Value', 'Status', 'Supplier']],
         body: tableData,
         startY: 125,
