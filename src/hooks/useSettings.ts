@@ -129,6 +129,8 @@ export const useSettings = () => {
           .upsert({
             user_id: user.id,
             settings: updatedSettings
+          }, {
+            onConflict: 'user_id'
           });
         
         if (error) {
