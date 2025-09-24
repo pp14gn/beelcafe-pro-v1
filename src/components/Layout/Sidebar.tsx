@@ -14,20 +14,22 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTranslation } from "@/hooks/useTranslation";
 import beelcafeLogo from '@/assets/beelcafe-logo.png';
 
 const Sidebar = () => {
   const location = useLocation();
   const { userProfile, signOut } = useAuth();
+  const { t } = useTranslation();
 
   const navItems = [
-    { to: "/pos", icon: ShoppingCart, label: "POS System", primary: true },
-    { to: "/orders", icon: Clock, label: "Orders" },
-    { to: "/inventory", icon: Package, label: "Inventory", requiredRole: "manager" },
-    { to: "/recipes", icon: ChefHat, label: "Recipes", requiredRole: "manager" },
-    { to: "/staff", icon: Users, label: "Staff", requiredRole: "manager" },
-    { to: "/analytics", icon: BarChart3, label: "Analytics", requiredRole: "manager" },
-    { to: "/settings", icon: Settings, label: "Settings" },
+    { to: "/pos", icon: ShoppingCart, label: t('nav.pos'), primary: true },
+    { to: "/orders", icon: Clock, label: t('nav.orders') },
+    { to: "/inventory", icon: Package, label: t('nav.inventory'), requiredRole: "manager" },
+    { to: "/recipes", icon: ChefHat, label: t('nav.recipes'), requiredRole: "manager" },
+    { to: "/staff", icon: Users, label: t('nav.staff'), requiredRole: "manager" },
+    { to: "/analytics", icon: BarChart3, label: t('nav.analytics'), requiredRole: "manager" },
+    { to: "/settings", icon: Settings, label: t('nav.settings') },
   ];
 
   const filteredNavItems = navItems.filter(item => 
@@ -106,7 +108,7 @@ const Sidebar = () => {
           onClick={handleSignOut}
         >
           <LogOut className="h-4 w-4" />
-          Sign Out
+          {t('common.no') === 'No' ? 'Sign Out' : 'Cerrar Sesión'}
         </Button>
       </div>
     </div>

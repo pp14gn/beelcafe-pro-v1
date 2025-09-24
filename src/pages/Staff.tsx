@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/hooks/useTranslation";
 import { 
   Users, 
   Plus, 
@@ -65,6 +66,7 @@ const Staff = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetchStaffData();

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/hooks/useTranslation";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 

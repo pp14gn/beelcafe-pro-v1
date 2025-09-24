@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Coffee, Eye, EyeOff, Loader2, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import { createAdminUser } from '@/utils/createAdminUser';
 import { supabase } from '@/integrations/supabase/client';
 import beelcafeLogo from '@/assets/beelcafe-logo.png';
@@ -19,6 +20,7 @@ const LoginForm = () => {
   const [creatingAdmin, setCreatingAdmin] = useState(false);
   const { signIn, user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   // Redirect if already logged in
   if (user) {
@@ -59,7 +61,7 @@ const LoginForm = () => {
       if (!emailOrUsername.includes('@')) {
         toast({
           variant: 'destructive',
-          title: 'Login Failed',
+          title: t('login.failed'),
           description: 'Please use your email address to login.',
         });
         setLoading(false);
@@ -71,19 +73,19 @@ const LoginForm = () => {
       if (error) {
         toast({
           variant: 'destructive',
-          title: 'Login Failed',
+          title: t('login.failed'),
           description: error.message || 'Invalid credentials',
         });
       } else {
         toast({
-          title: 'Welcome Back!',
-          description: 'You have been successfully logged in.',
+          title: t('login.success'),
+          description: t('login.success.desc'),
         });
       }
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Login Failed',
+        title: t('login.failed'),
         description: 'An unexpected error occurred',
       });
     }
@@ -112,15 +114,15 @@ const LoginForm = () => {
 
       <Card className="w-full max-w-md bg-background/95 backdrop-blur shadow-elevated border-border">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-foreground">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl font-bold text-foreground">{t('login.welcome')}</CardTitle>
           <CardDescription className="text-muted-foreground">
-            Sign in to your Beelcafe account
+            {t('login.signin')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="emailOrUsername" className="text-foreground">Email or Username</Label>
+              <Label htmlFor="emailOrUsername" className="text-foreground">{t('login.email')}</Label>
               <Input
                 id="emailOrUsername"
                 type="text"
@@ -132,7 +134,7 @@ const LoginForm = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-foreground">Password</Label>
+              <Label htmlFor="password" className="text-foreground">{t('login.password')}</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -166,10 +168,10 @@ const LoginForm = () => {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing In...
+                  {t('login.signing.in')}
                 </>
               ) : (
-                'Sign In'
+                t('login.signin.button')
               )}
             </Button>
           </form>

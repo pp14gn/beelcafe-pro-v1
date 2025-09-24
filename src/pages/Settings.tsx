@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSettings } from "@/hooks/useSettings";
+import { useTranslation } from "@/hooks/useTranslation";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useToast } from "@/hooks/use-toast";
 import { MercadoPagoSettings } from "@/components/MercadoPagoSettings";
@@ -28,6 +29,7 @@ import {
 
 const Settings = () => {
   const { settings, updateSettings, resetToDefaults, isLoading } = useSettings();
+  const { t } = useTranslation();
   const { toast } = useToast();
 
   const handleSaveChanges = () => {
@@ -35,8 +37,8 @@ const Settings = () => {
     receiptPrinter.setAutoPrint(settings.autoPrintReceipts);
     
     toast({
-      title: "Settings Saved",
-      description: "Your settings have been saved successfully.",
+      title: t('settings.saved'),
+      description: t('settings.saved.desc'),
     });
   };
 
@@ -45,8 +47,8 @@ const Settings = () => {
     receiptPrinter.setAutoPrint(true);
     
     toast({
-      title: "Settings Reset",
-      description: "Settings have been reset to defaults.",
+      title: t('settings.reset'),
+      description: t('settings.reset.desc'),
     });
   };
 
@@ -106,15 +108,15 @@ const Settings = () => {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground">Configure your coffee shop POS system</p>
+        <h1 className="text-2xl font-bold text-foreground">{t('settings.title')}</h1>
+        <p className="text-muted-foreground">{t('settings.subtitle')}</p>
       </div>
 
       <Tabs defaultValue="general" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="general">General Settings</TabsTrigger>
-          <TabsTrigger value="categories">Categories</TabsTrigger>
-          <TabsTrigger value="hours">Operating Hours</TabsTrigger>
+          <TabsTrigger value="general">{t('settings.general')}</TabsTrigger>
+          <TabsTrigger value="categories">{t('settings.categories')}</TabsTrigger>
+          <TabsTrigger value="hours">{t('settings.hours')}</TabsTrigger>
           <TabsTrigger value="mercadopago">MercadoPago Settings</TabsTrigger>
         </TabsList>
 
@@ -127,14 +129,14 @@ const Settings = () => {
               <Store className="h-5 w-5 text-coffee-gold" />
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">Store Information</h3>
-              <p className="text-sm text-muted-foreground">Basic store details</p>
+              <h3 className="font-semibold text-foreground">{t('settings.store.info')}</h3>
+              <p className="text-sm text-muted-foreground">{t('settings.store.details')}</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="storeName">Store Name</Label>
+              <Label htmlFor="storeName">{t('settings.store.name')}</Label>
               <Input 
                 id="storeName" 
                 value={settings.storeName}
@@ -143,7 +145,7 @@ const Settings = () => {
             </div>
             
             <div>
-              <Label htmlFor="storeAddress">Address</Label>
+              <Label htmlFor="storeAddress">{t('settings.store.address')}</Label>
               <Input 
                 id="storeAddress" 
                 value={settings.storeAddress}
@@ -153,7 +155,7 @@ const Settings = () => {
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="storePhone">Phone</Label>
+                <Label htmlFor="storePhone">{t('settings.store.phone')}</Label>
                 <Input 
                   id="storePhone" 
                   value={settings.storePhone}
@@ -161,7 +163,7 @@ const Settings = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="storeEmail">Email</Label>
+                <Label htmlFor="storeEmail">{t('settings.store.email')}</Label>
                 <Input 
                   id="storeEmail" 
                   value={settings.storeEmail}
@@ -454,10 +456,10 @@ const Settings = () => {
       {/* Save Button */}
       <div className="flex justify-end gap-4">
         <Button variant="outline" onClick={handleResetDefaults}>
-          Reset to Defaults
+          {t('settings.reset.defaults')}
         </Button>
         <Button className="bg-gradient-coffee hover:opacity-90" onClick={handleSaveChanges}>
-          Save Changes
+          {t('settings.save.changes')}
         </Button>
       </div>
     </div>

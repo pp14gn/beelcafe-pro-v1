@@ -14,6 +14,7 @@ import InventoryWarningDialog from "@/components/InventoryWarningDialog";
 import CardPaymentDialog from "@/components/CardPaymentDialog";
 import RealtimeClock from "@/components/RealtimeClock";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTranslation } from "@/hooks/useTranslation";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { receiptPrinter } from "@/utils/receiptPrinter";

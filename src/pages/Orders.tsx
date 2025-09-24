@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTranslation } from "@/hooks/useTranslation";
 import { supabase } from "@/integrations/supabase/client";
 import OrderTracker from "@/components/OrderTracker";
 import { Clock } from "lucide-react";
@@ -7,6 +8,7 @@ import { Clock } from "lucide-react";
 const Orders = () => {
   const [currentShift, setCurrentShift] = useState<any>(null);
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   useEffect(() => {
     loadCurrentShift();
@@ -37,9 +39,9 @@ const Orders = () => {
   return (
     <div className="h-screen bg-background">
       <div className="p-3 lg:p-4 border-b border-border">
-        <h1 className="text-lg lg:text-xl font-bold text-foreground">Open Orders</h1>
+        <h1 className="text-lg lg:text-xl font-bold text-foreground">{t('orders.title')}</h1>
         <p className="text-muted-foreground text-sm">
-          {currentShift ? 'Track and manage active orders' : 'Start a shift to view orders'}
+          {currentShift ? t('orders.track') : t('orders.no.shift')}
         </p>
       </div>
 
@@ -50,8 +52,8 @@ const Orders = () => {
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-muted-foreground">
               <Clock className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <h2 className="text-lg font-semibold mb-2">No Active Shift</h2>
-              <p>Start a shift from the POS system to view and manage orders</p>
+              <h2 className="text-lg font-semibold mb-2">{t('pos.no.shift')}</h2>
+              <p>{t('pos.shift.required')}</p>
             </div>
           </div>
         )}
