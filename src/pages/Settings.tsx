@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSettings } from "@/hooks/useSettings";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useToast } from "@/hooks/use-toast";
@@ -21,7 +22,8 @@ import {
   Wifi,
   CreditCard,
   Clock,
-  Tags
+  Tags,
+  Languages
 } from "lucide-react";
 
 const Settings = () => {
@@ -221,6 +223,28 @@ const Settings = () => {
                 checked={settings.lowStockAlerts}
                 onCheckedChange={(checked) => updateSettings({ lowStockAlerts: checked })}
               />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Languages className="h-4 w-4 text-muted-foreground" />
+                <Label>Language / Idioma</Label>
+              </div>
+              <p className="text-sm text-muted-foreground">Select your preferred language</p>
+              <Select 
+                value={settings.language} 
+                onValueChange={(value: 'en' | 'es') => updateSettings({ language: value })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">🇺🇸 English</SelectItem>
+                  <SelectItem value="es">🇪🇸 Español</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </Card>

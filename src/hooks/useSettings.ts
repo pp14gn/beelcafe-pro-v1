@@ -12,6 +12,7 @@ interface Settings {
   requireManagerApproval: boolean;
   autoLogout: boolean;
   backupFrequency: string;
+  language: 'en' | 'es';
   // Operating Hours
   openTime: string;
   closeTime: string;
@@ -36,6 +37,7 @@ const DEFAULT_SETTINGS: Settings = {
   requireManagerApproval: true,
   autoLogout: false,
   backupFrequency: 'Daily at 2:00 AM',
+  language: 'en',
   // Operating Hours Defaults
   openTime: '08:00',
   closeTime: '18:00',
