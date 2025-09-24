@@ -28,17 +28,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isHardcodedAdmin, setIsHardcodedAdmin] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Don't override hardcoded admin user
-      if (isHardcodedAdmin) {
-        setLoading(false);
-        return;
-      }
-      
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -55,11 +48,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (isHardcodedAdmin) {
-        setLoading(false);
-        return;
-      }
-      
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -72,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
-  }, [isHardcodedAdmin]);
+  }, []);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -144,34 +132,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Handle admin login with hardcoded credentials as fallback
-      if ((email === 'admin@coffeepos.com' || email === 'admin') && password === 'admin') {
-        // Create a mock user for admin
-        const adminUser = {
-          id: '00000000-0000-0000-0000-000000000001',
-          email: 'admin@coffeepos.com',
-          created_at: new Date().toISOString(),
-          app_metadata: {},
-          user_metadata: {},
-          aud: '',
-          confirmation_sent_at: '',
-        };
-        
-        const adminProfile = {
-          id: '00000000-0000-0000-0000-000000000001',
-          username: 'admin',
-          full_name: 'System Administrator',
-          role: 'admin' as const,
-          is_active: true,
-        };
-
-        setUser(adminUser as any);
-        setUserProfile(adminProfile);
-        setIsHardcodedAdmin(true);
-        setLoading(false);
-        return { error: null };
-      }
-
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -223,7 +183,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    setIsHardcodedAdmin(false);
     setUser(null);
     setSession(null);
     setUserProfile(null);

@@ -28,12 +28,20 @@ const LoginForm = () => {
   const handleCreateAdmin = async () => {
     setCreatingAdmin(true);
     
-    // Since Supabase may not be configured yet, we'll just show success
-    // The admin login will work with hardcoded credentials
-    toast({
-      title: 'Admin User Ready',
-      description: 'You can now login with username: admin, password: admin',
-    });
+    const result = await createAdminUser();
+    
+    if (result.success) {
+      toast({
+        title: 'Admin User Created',
+        description: result.message,
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Create Admin',
+        description: result.error,
+      });
+    }
     
     setCreatingAdmin(false);
   };
@@ -47,23 +55,15 @@ const LoginForm = () => {
     try {
       let email = emailOrUsername;
 
-      // Simple username to email mapping for known users
+      // For usernames, try to find the user by username in the database
       if (!emailOrUsername.includes('@')) {
-        const usernameEmailMap: { [key: string]: string } = {
-          'admin': 'admin@coffeepos.com',
-        };
-        
-        email = usernameEmailMap[emailOrUsername.toLowerCase()];
-        
-        if (!email) {
-          toast({
-            variant: 'destructive',
-            title: 'Login Failed',
-            description: 'Username not recognized. Please use email or contact administrator.',
-          });
-          setLoading(false);
-          return;
-        }
+        toast({
+          variant: 'destructive',
+          title: 'Login Failed',
+          description: 'Please use your email address to login.',
+        });
+        setLoading(false);
+        return;
       }
 
       const { error } = await signIn(email, password);
