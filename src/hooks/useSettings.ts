@@ -9,6 +9,7 @@ interface Settings {
   autoPrintReceipts: boolean;
   soundNotifications: boolean;
   lowStockAlerts: boolean;
+  emailNotifications: boolean;
   requireManagerApproval: boolean;
   autoLogout: boolean;
   backupFrequency: string;
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS: Settings = {
   autoPrintReceipts: true,
   soundNotifications: true,
   lowStockAlerts: true,
+  emailNotifications: false,
   requireManagerApproval: true,
   autoLogout: false,
   backupFrequency: 'Daily at 2:00 AM',

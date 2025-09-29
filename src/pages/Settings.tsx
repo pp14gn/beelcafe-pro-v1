@@ -229,6 +229,19 @@ const Settings = () => {
 
             <Separator />
 
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>{t('settings.email.notifications')}</Label>
+                <p className="text-sm text-muted-foreground">{t('settings.email.notifications.desc')}</p>
+              </div>
+              <Switch 
+                checked={settings.emailNotifications}
+                onCheckedChange={(checked) => updateSettings({ emailNotifications: checked })}
+              />
+            </div>
+
+            <Separator />
+
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Languages className="h-4 w-4 text-muted-foreground" />
