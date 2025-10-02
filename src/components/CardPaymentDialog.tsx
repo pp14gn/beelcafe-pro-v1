@@ -45,7 +45,6 @@ const CardPaymentDialog = ({
 }: CardPaymentDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [cardData, setCardData] = useState({
-    email: customerName ? `${customerName.toLowerCase().replace(/\s+/g, '')}@example.com` : "",
     installments: "1",
   });
 
@@ -79,22 +78,12 @@ const CardPaymentDialog = ({
     setLoading(true);
 
     try {
-      // Validate required fields
-      if (!cardData.email) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Please enter an email address.",
-        });
-        return;
-      }
-
       // Process payment through our edge function
       const { data, error } = await supabase.functions.invoke('process-card-payment', {
         body: {
           amount: total,
           description: `Purchase - ${items.length} items${customerName ? ` for ${customerName}` : ''}`,
-          email: cardData.email,
+          email: "customer@store.com",
           installments: parseInt(cardData.installments),
           user_id: userId,
           shift_id: shiftId,
@@ -144,7 +133,6 @@ const CardPaymentDialog = ({
 
   const resetForm = () => {
     setCardData({
-      email: customerName ? `${customerName.toLowerCase().replace(/\s+/g, '')}@example.com` : "",
       installments: "1",
     });
   };
@@ -181,19 +169,6 @@ const CardPaymentDialog = ({
           )}
 
           <Card className="p-4 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={cardData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="customer@example.com"
-                required
-                disabled={!isPointConfigured}
-              />
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="installments">Installments</Label>
               <Select 
