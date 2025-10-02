@@ -83,6 +83,87 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_transactions: {
+        Row: {
+          created_at: string
+          customer_id: string
+          description: string
+          id: string
+          points: number
+          sale_id: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          description: string
+          id?: string
+          points: number
+          sale_id?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          description?: string
+          id?: string
+          points?: number
+          sale_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_transactions_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          points: number
+          total_spent: number
+          updated_at: string
+          visit_count: number
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          points?: number
+          total_spent?: number
+          updated_at?: string
+          visit_count?: number
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          points?: number
+          total_spent?: number
+          updated_at?: string
+          visit_count?: number
+        }
+        Relationships: []
+      }
       inventory_count_items: {
         Row: {
           actual_count: number
@@ -431,6 +512,7 @@ export type Database = {
       sales: {
         Row: {
           created_at: string
+          customer_id: string | null
           id: string
           items: Json
           payment_method: string
@@ -441,6 +523,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customer_id?: string | null
           id?: string
           items: Json
           payment_method: string
@@ -451,6 +534,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customer_id?: string | null
           id?: string
           items?: Json
           payment_method?: string
@@ -460,6 +544,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_shift_id_fkey"
             columns: ["shift_id"]

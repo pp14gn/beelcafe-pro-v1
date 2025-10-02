@@ -7,6 +7,7 @@ const translations = {
     // Navigation
     'nav.pos': 'POS',
     'nav.orders': 'Orders',
+    'nav.customers': 'Customers',
     'nav.inventory': 'Inventory',
     'nav.recipes': 'Recipes',
     'nav.analytics': 'Analytics',
@@ -193,6 +194,7 @@ const translations = {
     // Navigation
     'nav.pos': 'TPV',
     'nav.orders': 'Órdenes',
+    'nav.customers': 'Clientes',
     'nav.inventory': 'Inventario',
     'nav.recipes': 'Recetas',
     'nav.analytics': 'Análisis',

@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useSettings } from "@/hooks/useSettings";
+import CustomerSelectDialog from "@/components/CustomerSelectDialog";
 import { 
   Coffee, 
   Plus, 
@@ -30,7 +31,8 @@ import {
   Calculator,
   Clock,
   StopCircle,
-  AlertCircle
+  AlertCircle,
+  Search
 } from "lucide-react";
 
 
@@ -86,6 +88,8 @@ const POS = () => {
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
   const [criticalStockItems, setCriticalStockItems] = useState<any[]>([]);
   const [customerName, setCustomerName] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [customerSelectDialogOpen, setCustomerSelectDialogOpen] = useState(false);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -563,6 +567,7 @@ const POS = () => {
 
       setCart([]);
       setCustomerName("");
+      setSelectedCustomer(null);
       if (paymentMethod === 'cash') {
         setCurrentCashTotal(prev => prev + total);
       }
@@ -885,6 +890,42 @@ const POS = () => {
                 <div className="p-4 border-t border-border bg-muted/30">
                   <div className="space-y-3">
                     <div className="space-y-2">
+                      {selectedCustomer ? (
+                        <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <p className="font-medium text-sm">{selectedCustomer.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {Number(selectedCustomer.points).toFixed(0)} points
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedCustomer(null)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          {settings.loyaltyEnabled && (
+                            <p className="text-xs text-primary">
+                              Will earn {Math.floor(getTotalPrice() * settings.loyaltyPointsPerDollar)} points
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => setCustomerSelectDialogOpen(true)}
+                        >
+                          <Search className="h-4 w-4 mr-2" />
+                          Select Customer
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
                       <label htmlFor="customerName" className="text-sm font-medium text-foreground">
                         Customer Name (Optional)
                       </label>
@@ -941,6 +982,37 @@ const POS = () => {
       {isMobile && cart.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 p-4">
           <div className="space-y-3">
+            {selectedCustomer ? (
+              <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-sm">{selectedCustomer.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {Number(selectedCustomer.points).toFixed(0)} pts
+                      {settings.loyaltyEnabled && ` (+${Math.floor(getTotalPrice() * settings.loyaltyPointsPerDollar)})`}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedCustomer(null)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setCustomerSelectDialogOpen(true)}
+              >
+                <Search className="h-4 w-4 mr-2" />
+                Select Customer
+              </Button>
+            )}
+            
             <div className="space-y-2">
               <label htmlFor="customerNameMobile" className="text-sm font-medium text-foreground">
                 Customer Name (Optional)
@@ -1070,6 +1142,16 @@ const POS = () => {
         onConfirm={handleInventoryConfirm}
         lowStockItems={lowStockItems}
         criticalStockItems={criticalStockItems}
+      />
+
+      {/* Customer Select Dialog */}
+      <CustomerSelectDialog
+        isOpen={customerSelectDialogOpen}
+        onClose={() => setCustomerSelectDialogOpen(false)}
+        onSelect={(customer) => {
+          setSelectedCustomer(customer);
+          setCustomerSelectDialogOpen(false);
+        }}
       />
     </div>
   );

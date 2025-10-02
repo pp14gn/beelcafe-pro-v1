@@ -10,7 +10,8 @@ import {
   Settings,
   LogOut,
   X,
-  Clock
+  Clock,
+  Gift
 } from "lucide-react";
 
 interface MobileNavProps {
@@ -24,6 +25,7 @@ const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
   const navItems = [
     { to: "/pos", icon: ShoppingCart, label: "POS System" },
     { to: "/orders", icon: Clock, label: "Orders" },
+    { to: "/customers", icon: Gift, label: "Customers" },
     { to: "/inventory", icon: Package, label: "Inventory", requiredRole: "manager" },
     { to: "/recipes", icon: ChefHat, label: "Recipes", requiredRole: "manager" },
     { to: "/staff", icon: Users, label: "Staff", requiredRole: "manager" },

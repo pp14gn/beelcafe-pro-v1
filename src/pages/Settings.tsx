@@ -264,6 +264,48 @@ const Settings = () => {
           </div>
         </Card>
 
+        {/* Loyalty Program Settings */}
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Tags className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Loyalty Program</h3>
+              <p className="text-sm text-muted-foreground">Customer rewards configuration</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Enable loyalty program</Label>
+                <p className="text-sm text-muted-foreground">Track customer points and rewards</p>
+              </div>
+              <Switch 
+                checked={settings.loyaltyEnabled}
+                onCheckedChange={(checked) => updateSettings({ loyaltyEnabled: checked })}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="pointsPerDollar">Points per Dollar Spent</Label>
+              <p className="text-sm text-muted-foreground">How many points customers earn per dollar</p>
+              <Input
+                id="pointsPerDollar"
+                type="number"
+                min="0"
+                step="0.1"
+                value={settings.loyaltyPointsPerDollar}
+                onChange={(e) => updateSettings({ loyaltyPointsPerDollar: parseFloat(e.target.value) || 0 })}
+                disabled={!settings.loyaltyEnabled}
+              />
+            </div>
+          </div>
+        </Card>
+
         {/* Security Settings */}
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-4">

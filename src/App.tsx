@@ -14,6 +14,7 @@ import Recipes from "./pages/Recipes";
 import Staff from "./pages/Staff";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
+import Customers from "./pages/Customers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -71,6 +72,13 @@ const App = () => (
               <ProtectedRoute requiredRole="manager">
                 <ResponsiveLayout>
                   <Analytics />
+                </ResponsiveLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/customers" element={
+              <ProtectedRoute>
+                <ResponsiveLayout>
+                  <Customers />
                 </ResponsiveLayout>
               </ProtectedRoute>
             } />

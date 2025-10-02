@@ -12,6 +12,8 @@ interface Settings {
   emailNotifications: boolean;
   requireManagerApproval: boolean;
   autoLogout: boolean;
+  loyaltyPointsPerDollar: number;
+  loyaltyEnabled: boolean;
   backupFrequency: string;
   language: 'en' | 'es';
   // Operating Hours
@@ -38,6 +40,8 @@ const DEFAULT_SETTINGS: Settings = {
   emailNotifications: false,
   requireManagerApproval: true,
   autoLogout: false,
+  loyaltyPointsPerDollar: 1,
+  loyaltyEnabled: true,
   backupFrequency: 'Daily at 2:00 AM',
   language: 'en',
   // Operating Hours Defaults

@@ -8,7 +8,8 @@ import {
   BarChart3, 
   Settings,
   LogOut,
-  Clock
+  Clock,
+  Gift
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -25,6 +26,7 @@ const Sidebar = () => {
   const navItems = [
     { to: "/pos", icon: ShoppingCart, label: t('nav.pos'), primary: true },
     { to: "/orders", icon: Clock, label: t('nav.orders') },
+    { to: "/customers", icon: Gift, label: t('nav.customers') },
     { to: "/inventory", icon: Package, label: t('nav.inventory'), requiredRole: "manager" },
     { to: "/recipes", icon: ChefHat, label: t('nav.recipes'), requiredRole: "manager" },
     { to: "/staff", icon: Users, label: t('nav.staff'), requiredRole: "manager" },
