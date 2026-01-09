@@ -45,35 +45,35 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-gradient-coffee shadow-elevated">
+    <div className="flex h-screen w-52 flex-col bg-gradient-coffee shadow-elevated">
       {/* Logo Header */}
-      <div className="flex items-center gap-3 p-6 border-b border-coffee-cream/20">
+      <div className="flex items-center gap-2 p-4 border-b border-coffee-cream/20">
         <img 
           src={beelcafeLogo} 
           alt="Beelcafe Logo" 
-          className="h-12 w-12 rounded-full shadow-pos"
+          className="h-10 w-10 rounded-full shadow-pos"
         />
         <div>
-          <h1 className="text-lg font-bold text-coffee-cream">Beelcafe</h1>
-          <p className="text-sm text-coffee-cream/70">POS System</p>
+          <h1 className="text-base font-bold text-coffee-cream">Beelcafe</h1>
+          <p className="text-xs text-coffee-cream/70">POS System</p>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-3 space-y-1">
         {filteredNavItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+              `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? "bg-coffee-cream text-coffee-bean shadow-pos"
                   : "text-coffee-cream/80 hover:bg-coffee-cream/10 hover:text-coffee-cream"
               }`
             }
           >
-            <item.icon className="h-5 w-5" />
+            <item.icon className="h-4 w-4" />
             {item.label}
           </NavLink>
         ))}
@@ -82,19 +82,19 @@ const Sidebar = () => {
       <Separator className="bg-coffee-cream/20" />
 
       {/* User Section */}
-      <div className="p-4 space-y-3">
-        <div className="flex items-center gap-3 px-4 py-2">
-          <Avatar className="h-8 w-8">
+      <div className="p-3 space-y-2">
+        <div className="flex items-center gap-2 px-3 py-1.5">
+          <Avatar className="h-7 w-7">
             {userProfile?.picture_url ? (
               <AvatarImage src={userProfile.picture_url} alt={userProfile.full_name || userProfile.username || 'User'} />
             ) : (
-              <AvatarFallback className="bg-coffee-gold text-coffee-bean text-sm font-semibold">
+              <AvatarFallback className="bg-coffee-gold text-coffee-bean text-xs font-semibold">
                 {userProfile?.full_name?.charAt(0) || userProfile?.username?.charAt(0) || 'U'}
               </AvatarFallback>
             )}
           </Avatar>
-          <div>
-            <p className="text-sm font-medium text-coffee-cream">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-coffee-cream truncate">
               {userProfile?.full_name || userProfile?.username || 'User'}
             </p>
             <p className="text-xs text-coffee-cream/60 capitalize">
@@ -106,7 +106,7 @@ const Sidebar = () => {
         <Button 
           variant="ghost" 
           size="sm" 
-          className="w-full justify-start gap-3 text-coffee-cream/80 hover:bg-coffee-cream/10 hover:text-coffee-cream"
+          className="w-full justify-start gap-2 text-coffee-cream/80 hover:bg-coffee-cream/10 hover:text-coffee-cream text-sm"
           onClick={handleSignOut}
         >
           <LogOut className="h-4 w-4" />
