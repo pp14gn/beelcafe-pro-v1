@@ -235,12 +235,12 @@ const Inventory = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Inventory Management</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Monitor stock levels and manage inventory</p>
+          <h1 className="text-lg sm:text-xl font-bold text-foreground">Inventory Management</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Monitor stock levels and manage inventory</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button 
@@ -280,46 +280,46 @@ const Inventory = () => {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Critical Stock</p>
-              <p className="text-2xl font-bold text-destructive">{criticalItems.length}</p>
+              <p className="text-xs text-muted-foreground">Critical Stock</p>
+              <p className="text-xl font-bold text-destructive">{criticalItems.length}</p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-pos-warning/10 flex items-center justify-center">
-              <TrendingDown className="h-5 w-5 text-pos-warning" />
+        <Card className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-pos-warning/10 flex items-center justify-center">
+              <TrendingDown className="h-4 w-4 text-pos-warning" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Low Stock</p>
-              <p className="text-2xl font-bold text-pos-warning">{lowStockItems.length}</p>
+              <p className="text-xs text-muted-foreground">Low Stock</p>
+              <p className="text-xl font-bold text-pos-warning">{lowStockItems.length}</p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-coffee-gold/10 flex items-center justify-center">
-              <Package className="h-5 w-5 text-coffee-gold" />
+        <Card className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-coffee-gold/10 flex items-center justify-center">
+              <Package className="h-4 w-4 text-coffee-gold" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Items</p>
-              <p className="text-2xl font-bold text-coffee-gold">{inventoryData.length}</p>
+              <p className="text-xs text-muted-foreground">Total Items</p>
+              <p className="text-xl font-bold text-coffee-gold">{inventoryData.length}</p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Filters and Search */}
-      <Card className="p-4">
+      <Card className="p-3">
         <div className="flex flex-col gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -356,8 +356,8 @@ const Inventory = () => {
 
       {/* Inventory Table */}
       <Card>
-        <div className="p-4 border-b border-border">
-          <h3 className="font-semibold text-foreground">Inventory Items</h3>
+        <div className="p-3 border-b border-border">
+          <h3 className="font-semibold text-sm text-foreground">Inventory Items</h3>
         </div>
         
         {/* Mobile view - cards */}
