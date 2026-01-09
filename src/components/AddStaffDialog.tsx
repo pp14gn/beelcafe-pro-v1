@@ -19,7 +19,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Users, Eye, EyeOff, Upload, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -43,7 +42,6 @@ const AddStaffDialog = ({ isOpen, onClose, onSuccess }: AddStaffDialogProps) => 
   const [picturePreview, setPicturePreview] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
 
-  const { signUp } = useAuth();
   const { toast } = useToast();
 
   const roles = [
@@ -129,18 +127,26 @@ const AddStaffDialog = ({ isOpen, onClose, onSuccess }: AddStaffDialogProps) => 
         pictureUrl = publicUrl;
       }
 
-      // Create auth user and profile
-      const { error } = await signUp(formData.email, formData.password, {
-        username: formData.username,
-        full_name: formData.full_name,
-        role: formData.role as any,
-        picture_url: pictureUrl,
+      // Get current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('You must be logged in to create staff members');
+      }
+
+      // Call the edge function to create the staff member
+      const { data, error } = await supabase.functions.invoke('create-staff-member', {
+        body: {
+          email: formData.email,
+          password: formData.password,
+          username: formData.username,
+          full_name: formData.full_name,
+          role: formData.role,
+          picture_url: pictureUrl,
+        },
       });
 
       if (error) throw error;
-
-      // User profile creation completed successfully
-      // Email is managed through Supabase Auth automatically
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Staff Member Added",
