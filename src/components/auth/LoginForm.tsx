@@ -57,15 +57,42 @@ const LoginForm = () => {
     try {
       let email = emailOrUsername;
 
-      // For usernames, try to find the user by username in the database
+      // If input doesn't look like an email, try to find user by username
       if (!emailOrUsername.includes('@')) {
-        toast({
-          variant: 'destructive',
-          title: t('login.failed'),
-          description: 'Please use your email address to login.',
+        const { data: userData, error: lookupError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('username', emailOrUsername)
+          .single();
+
+        if (lookupError || !userData) {
+          toast({
+            variant: 'destructive',
+            title: t('login.failed'),
+            description: 'Username not found. Please check and try again.',
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Get the email from auth.users using the user id
+        // We need to look up the email via a different approach since we can't query auth.users directly
+        // Instead, we'll call an edge function to get the email
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('get-user-email', {
+          body: { userId: userData.id },
         });
-        setLoading(false);
-        return;
+
+        if (emailError || !emailData?.email) {
+          toast({
+            variant: 'destructive',
+            title: t('login.failed'),
+            description: 'Could not verify user. Please try using your email.',
+          });
+          setLoading(false);
+          return;
+        }
+
+        email = emailData.email;
       }
 
       const { error } = await signIn(email, password);
