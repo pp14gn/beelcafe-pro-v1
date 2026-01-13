@@ -19,7 +19,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Plus, Trash2, Edit3 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Plus, Trash2, Edit3, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -44,6 +45,12 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
   const [modifiers, setModifiers] = useState<any[]>([]);
   const [editingModifier, setEditingModifier] = useState<any>(null);
   const [newModifier, setNewModifier] = useState({ inventory_item_id: "", quantity: "1" });
+  
+  // Ingredients state
+  const [ingredients, setIngredients] = useState<any[]>([]);
+  const [editingIngredient, setEditingIngredient] = useState<any>(null);
+  const [newIngredient, setNewIngredient] = useState({ inventory_item_id: "", quantity: "1" });
+  
   const [availableInventoryItems, setAvailableInventoryItems] = useState<any[]>([]);
   const { toast } = useToast();
 
@@ -79,9 +86,27 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
           : (recipe.instructions || ""),
       });
       loadRecipeModifiers();
+      loadRecipeIngredients();
       setNewModifier({ inventory_item_id: "", quantity: "1" });
+      setNewIngredient({ inventory_item_id: "", quantity: "1" });
     }
   }, [recipe]);
+
+  const loadRecipeIngredients = async () => {
+    if (!recipe?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('recipe_ingredients')
+        .select('*, inventory_item:inventory_items(*)')
+        .eq('recipe_id', recipe.id);
+
+      if (error) throw error;
+      setIngredients(data || []);
+    } catch (error) {
+      console.error('Error loading recipe ingredients:', error);
+    }
+  };
 
   const loadRecipeModifiers = async () => {
     if (!recipe?.id) return;
@@ -96,6 +121,103 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
       setModifiers(data || []);
     } catch (error) {
       console.error('Error loading recipe modifiers:', error);
+    }
+  };
+
+  // Ingredient management functions
+  const addIngredient = async () => {
+    if (!newIngredient.inventory_item_id || !newIngredient.quantity) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('recipe_ingredients')
+        .insert({
+          recipe_id: recipe.id,
+          inventory_item_id: newIngredient.inventory_item_id,
+          quantity: parseFloat(newIngredient.quantity)
+        })
+        .select('*, inventory_item:inventory_items(*)')
+        .single();
+
+      if (error) throw error;
+
+      setIngredients([...ingredients, data]);
+      setNewIngredient({ inventory_item_id: "", quantity: "1" });
+      
+      toast({
+        title: "Success",
+        description: "Ingredient added successfully.",
+      });
+    } catch (error) {
+      console.error("Error adding ingredient:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to add ingredient.",
+      });
+    }
+  };
+
+  const updateIngredient = async (ingredientId: string, inventory_item_id: string, quantity: string) => {
+    try {
+      const { error } = await supabase
+        .from('recipe_ingredients')
+        .update({
+          inventory_item_id: inventory_item_id,
+          quantity: parseFloat(quantity)
+        })
+        .eq('id', ingredientId);
+
+      if (error) throw error;
+
+      // Reload ingredients to get updated data with inventory item info
+      const { data: updatedIngredients, error: fetchError } = await supabase
+        .from('recipe_ingredients')
+        .select('*, inventory_item:inventory_items(*)')
+        .eq('recipe_id', recipe.id);
+
+      if (!fetchError) {
+        setIngredients(updatedIngredients || []);
+      }
+      
+      setEditingIngredient(null);
+      
+      toast({
+        title: "Success",
+        description: "Ingredient updated successfully.",
+      });
+    } catch (error) {
+      console.error("Error updating ingredient:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update ingredient.",
+      });
+    }
+  };
+
+  const deleteIngredient = async (ingredientId: string) => {
+    try {
+      const { error } = await supabase
+        .from('recipe_ingredients')
+        .delete()
+        .eq('id', ingredientId);
+
+      if (error) throw error;
+
+      setIngredients(ingredients.filter(ing => ing.id !== ingredientId));
+      
+      toast({
+        title: "Success",
+        description: "Ingredient deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting ingredient:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete ingredient.",
+      });
     }
   };
 
@@ -271,6 +393,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                 <SelectItem value="food">Food</SelectItem>
                 <SelectItem value="pastries">Pastries</SelectItem>
                 <SelectItem value="beverages">Beverages</SelectItem>
+                <SelectItem value="consumables">Consumables</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -334,6 +457,135 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
 
           <Separator />
 
+          {/* Recipe Ingredients Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Recipe Ingredients
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Add new ingredient */}
+              <div className="flex gap-2">
+                <Select
+                  value={newIngredient.inventory_item_id}
+                  onValueChange={(value) => setNewIngredient(prev => ({ ...prev, inventory_item_id: value }))}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select inventory item" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableInventoryItems.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name} ({item.unit})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Qty"
+                  value={newIngredient.quantity}
+                  onChange={(e) => setNewIngredient(prev => ({ ...prev, quantity: e.target.value }))}
+                  className="w-20"
+                />
+                <Button type="button" onClick={addIngredient} size="sm">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Existing ingredients */}
+              <ScrollArea className="max-h-[200px]">
+                <div className="space-y-2">
+                  {ingredients.map((ingredient) => (
+                    <div key={ingredient.id} className="flex items-center gap-2 p-2 border rounded">
+                      {editingIngredient?.id === ingredient.id ? (
+                        <>
+                          <Select
+                            value={editingIngredient.inventory_item_id}
+                            onValueChange={(value) => setEditingIngredient(prev => ({ ...prev, inventory_item_id: value }))}
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableInventoryItems.map((item) => (
+                                <SelectItem key={item.id} value={item.id}>
+                                  {item.name} ({item.unit})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={editingIngredient.quantity}
+                            onChange={(e) => setEditingIngredient(prev => ({ ...prev, quantity: e.target.value }))}
+                            className="w-20"
+                          />
+                          <Button 
+                            type="button"
+                            size="sm" 
+                            onClick={() => updateIngredient(ingredient.id, editingIngredient.inventory_item_id, editingIngredient.quantity)}
+                          >
+                            Save
+                          </Button>
+                          <Button 
+                            type="button"
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => setEditingIngredient(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex-1">
+                            <span className="font-medium">
+                              {ingredient.inventory_item?.name || 'Unknown Item'}
+                            </span>
+                            <Badge variant="secondary" className="ml-2">
+                              {ingredient.quantity} {ingredient.inventory_item?.unit || ''}
+                            </Badge>
+                          </div>
+                          <Button 
+                            type="button"
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => setEditingIngredient({ 
+                              id: ingredient.id, 
+                              inventory_item_id: ingredient.inventory_item_id, 
+                              quantity: ingredient.quantity.toString() 
+                            })}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            type="button"
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => deleteIngredient(ingredient.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {ingredients.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No ingredients added yet. Add your first ingredient above.
+                    </p>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Recipe Modifiers Card */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
