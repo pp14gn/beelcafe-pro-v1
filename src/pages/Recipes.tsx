@@ -183,7 +183,8 @@ const Recipes = () => {
     { id: "all", name: "All Recipes" },
     { id: "coffee", name: "Coffee" },
     { id: "food", name: "Food" },
-    { id: "pastries", name: "Pastries" }
+    { id: "pastries", name: "Pastries" },
+    { id: "consumables", name: "Consumables" }
   ];
 
   const filteredRecipes = recipes.filter(recipe => {
