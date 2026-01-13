@@ -196,7 +196,8 @@ const Inventory = () => {
     { id: "coffee", name: "Coffee" },
     { id: "dairy", name: "Dairy" },
     { id: "sweeteners", name: "Sweeteners" },
-    { id: "supplies", name: "Supplies" }
+    { id: "supplies", name: "Supplies" },
+    { id: "consumables", name: "Consumables" }
   ];
 
   const getStockStatus = (current: number, minimum: number) => {
