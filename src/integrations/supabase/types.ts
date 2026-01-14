@@ -130,9 +130,11 @@ export type Database = {
       }
       customers: {
         Row: {
+          birthday: string | null
           created_at: string
           email: string | null
           id: string
+          membership_tier: string
           name: string
           phone: string | null
           points: number
@@ -141,9 +143,11 @@ export type Database = {
           visit_count: number
         }
         Insert: {
+          birthday?: string | null
           created_at?: string
           email?: string | null
           id?: string
+          membership_tier?: string
           name: string
           phone?: string | null
           points?: number
@@ -152,9 +156,11 @@ export type Database = {
           visit_count?: number
         }
         Update: {
+          birthday?: string | null
           created_at?: string
           email?: string | null
           id?: string
+          membership_tier?: string
           name?: string
           phone?: string | null
           points?: number
@@ -292,6 +298,132 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      loyalty_events: {
+        Row: {
+          created_at: string
+          end_date: string
+          event_type: string
+          id: string
+          is_active: boolean
+          multiplier: number
+          name: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          multiplier?: number
+          name: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          multiplier?: number
+          name?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      loyalty_redemptions: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          points_spent: number
+          redeemed_by: string
+          reward_id: string | null
+          sale_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          points_spent: number
+          redeemed_by: string
+          reward_id?: string | null
+          sale_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          points_spent?: number
+          redeemed_by?: string
+          reward_id?: string | null
+          sale_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_redemptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_redemptions_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_rewards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_redemptions_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_rewards: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          points_cost: number
+          recipe_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          points_cost: number
+          recipe_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          points_cost?: number
+          recipe_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_rewards_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orders: {
         Row: {
