@@ -22,6 +22,7 @@ const AddCustomerDialog = ({ isOpen, onClose, onSuccess }: AddCustomerDialogProp
     name: "",
     email: "",
     phone: "",
+    birthday: "",
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -37,22 +38,24 @@ const AddCustomerDialog = ({ isOpen, onClose, onSuccess }: AddCustomerDialogProp
           name: formData.name,
           email: formData.email || null,
           phone: formData.phone || null,
+          birthday: formData.birthday || null,
+          membership_tier: 'bronze',
         });
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Customer registered successfully",
+        description: "Member registered successfully",
       });
 
-      setFormData({ name: "", email: "", phone: "" });
+      setFormData({ name: "", email: "", phone: "", birthday: "" });
       onSuccess();
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to register customer",
+        description: error.message || "Failed to register member",
       });
     } finally {
       setLoading(false);
@@ -63,7 +66,7 @@ const AddCustomerDialog = ({ isOpen, onClose, onSuccess }: AddCustomerDialogProp
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Register New Customer</DialogTitle>
+          <DialogTitle>Register New Member</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -73,7 +76,7 @@ const AddCustomerDialog = ({ isOpen, onClose, onSuccess }: AddCustomerDialogProp
               id="name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Customer name"
+              placeholder="Member name"
               required
             />
           </div>
@@ -85,7 +88,7 @@ const AddCustomerDialog = ({ isOpen, onClose, onSuccess }: AddCustomerDialogProp
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="customer@example.com"
+              placeholder="member@example.com"
             />
           </div>
 
@@ -96,6 +99,16 @@ const AddCustomerDialog = ({ isOpen, onClose, onSuccess }: AddCustomerDialogProp
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               placeholder="+1234567890"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="birthday">Birthday (for rewards)</Label>
+            <Input
+              id="birthday"
+              type="date"
+              value={formData.birthday}
+              onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
             />
           </div>
 
