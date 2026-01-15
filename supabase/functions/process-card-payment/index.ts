@@ -20,6 +20,7 @@ interface PaymentRequest {
   items: any[];
   pos_id?: string;
   terminal_id?: string;
+  customer_id?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -109,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       // Record the sale in database
-      const { error: salesError } = await supabase
+      const { data: sale, error: salesError } = await supabase
         .from('sales')
         .insert({
           user_id: paymentData.user_id,
@@ -117,29 +118,133 @@ const handler = async (req: Request): Promise<Response> => {
           total_amount: paymentData.amount,
           payment_method: 'card',
           items: paymentData.items,
-        });
+          customer_id: paymentData.customer_id || null,
+        })
+        .select('id')
+        .single();
 
       if (salesError) {
         console.error('Error recording sale:', salesError);
-        // Payment was successful but database recording failed
-        // You might want to implement a retry mechanism or manual reconciliation
+        // Payment was successful but database recording failed.
+        // Keep returning success for the payment request, but we can't award points without a sale row.
+      }
+
+      // Award loyalty points (server-side) when a customer is linked to the sale
+      if (paymentData.customer_id && sale?.id) {
+        try {
+          // Load loyalty settings for this user (falls back to defaults)
+          let loyaltyEnabled = true;
+          let loyaltyPointsPerDollar = 1;
+
+          const { data: settingsRow, error: settingsError } = await supabase
+            .from('user_settings')
+            .select('settings')
+            .eq('user_id', paymentData.user_id)
+            .maybeSingle();
+
+          if (settingsError) {
+            console.error('Error loading user settings:', settingsError);
+          } else if (settingsRow?.settings) {
+            const s: any = settingsRow.settings;
+            if (typeof s.loyaltyEnabled === 'boolean') loyaltyEnabled = s.loyaltyEnabled;
+            if (s.loyaltyPointsPerDollar !== undefined) {
+              const parsed = Number(s.loyaltyPointsPerDollar);
+              if (!Number.isNaN(parsed)) loyaltyPointsPerDollar = parsed;
+            }
+          }
+
+          if (loyaltyEnabled) {
+            const { data: customerRow, error: customerError } = await supabase
+              .from('customers')
+              .select('id, name, points, total_spent, visit_count, birthday, membership_tier')
+              .eq('id', paymentData.customer_id)
+              .single();
+
+            if (customerError || !customerRow) {
+              console.error('Error loading customer for loyalty:', customerError);
+            } else {
+              const currentTier = customerRow.membership_tier || (Number(customerRow.total_spent) >= 100 ? 'gold' : Number(customerRow.total_spent) >= 50 ? 'silver' : 'bronze');
+              const tierMultiplier = currentTier === 'gold' ? 1.5 : currentTier === 'silver' ? 1.25 : 1;
+
+              // Load active events
+              let eventMultiplier = 1;
+              const nowIso = new Date().toISOString();
+              const { data: activeEvents, error: eventsError } = await supabase
+                .from('loyalty_events')
+                .select('multiplier, event_type')
+                .eq('is_active', true)
+                .lte('start_date', nowIso)
+                .gte('end_date', nowIso);
+
+              if (eventsError) {
+                console.error('Error loading loyalty events:', eventsError);
+              }
+
+              const today = new Date();
+              const customerBirthday = customerRow.birthday ? new Date(customerRow.birthday) : null;
+              const isBirthday = !!customerBirthday &&
+                customerBirthday.getMonth() === today.getMonth() &&
+                customerBirthday.getDate() === today.getDate();
+
+              (activeEvents || []).forEach((event: any) => {
+                const multiplier = Number(event.multiplier) || 1;
+                if (event.event_type === 'birthday') {
+                  if (isBirthday) eventMultiplier = Math.max(eventMultiplier, multiplier);
+                  return;
+                }
+                if (event.event_type === 'multiplier' || event.event_type === 'bonus') {
+                  eventMultiplier = Math.max(eventMultiplier, multiplier);
+                }
+              });
+
+              const basePoints = Math.floor(paymentData.amount * loyaltyPointsPerDollar);
+              const earnedPoints = Math.floor(basePoints * tierMultiplier * eventMultiplier);
+
+              const newTotalSpent = Number(customerRow.total_spent) + Number(paymentData.amount);
+              const newTier = newTotalSpent >= 100 ? 'gold' : newTotalSpent >= 50 ? 'silver' : 'bronze';
+
+              const { error: updateError } = await supabase
+                .from('customers')
+                .update({
+                  points: Number(customerRow.points) + earnedPoints,
+                  total_spent: newTotalSpent,
+                  visit_count: Number(customerRow.visit_count) + 1,
+                  membership_tier: newTier,
+                })
+                .eq('id', customerRow.id);
+
+              if (updateError) {
+                console.error('Error updating customer loyalty:', updateError);
+              } else {
+                const { error: txError } = await supabase
+                  .from('customer_transactions')
+                  .insert({
+                    customer_id: customerRow.id,
+                    type: 'earn',
+                    points: earnedPoints,
+                    sale_id: sale.id,
+                    description: `Earned ${earnedPoints} pts from $${Number(paymentData.amount).toFixed(2)} card purchase`,
+                  });
+
+                if (txError) {
+                  console.error('Error inserting customer transaction:', txError);
+                }
+              }
+            }
+          }
+        } catch (loyaltyError) {
+          console.error('Error applying loyalty points:', loyaltyError);
+        }
       }
 
       // Process inventory updates using existing edge function
       try {
-        const inventoryResponse = await fetch(`${supabaseUrl}/functions/v1/process-sale-inventory`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            items: paymentData.items,
-          }),
+        const { error: inventoryError } = await supabase.functions.invoke('process-sale-inventory', {
+          body: { items: paymentData.items },
         });
 
-        if (!inventoryResponse.ok) {
-          console.error('Error updating inventory:', await inventoryResponse.text());
+        if (inventoryError) {
+          console.error('Error updating inventory:', inventoryError);
         }
       } catch (inventoryError) {
         console.error('Inventory update error:', inventoryError);

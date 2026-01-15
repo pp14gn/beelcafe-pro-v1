@@ -29,6 +29,7 @@ interface CardPaymentDialogProps {
   total: number;
   items: any[];
   customerName?: string;
+  customerId?: string;
   userId: string;
   shiftId?: string;
 }
@@ -40,6 +41,7 @@ const CardPaymentDialog = ({
   total, 
   items, 
   customerName,
+  customerId,
   userId,
   shiftId 
 }: CardPaymentDialogProps) => {
@@ -88,6 +90,7 @@ const CardPaymentDialog = ({
           user_id: userId,
           shift_id: shiftId,
           items: items,
+          customer_id: customerId,
           // Point configuration
           pos_id: settings.selectedPosId,
           terminal_id: settings.selectedTerminalId,

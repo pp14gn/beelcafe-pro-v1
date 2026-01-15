@@ -503,77 +503,93 @@ const POS = () => {
       // Award loyalty points if customer is selected and loyalty is enabled
       if (selectedCustomer && settings.loyaltyEnabled) {
         try {
-          // Get tier multiplier
-          const tierMultiplier = selectedCustomer.membership_tier === 'gold' ? 1.5 
-            : selectedCustomer.membership_tier === 'silver' ? 1.25 : 1;
-          
-          // Check for active loyalty events
-          let eventMultiplier = 1;
-          const now = new Date().toISOString();
-          const { data: activeEvents } = await supabase
-            .from('loyalty_events')
-            .select('multiplier, event_type')
-            .eq('is_active', true)
-            .lte('start_date', now)
-            .gte('end_date', now);
+          // Fetch fresh customer data (selectedCustomer from dialog is a lightweight object)
+          const { data: customerRow, error: customerFetchError } = await supabase
+            .from('customers')
+            .select('id, name, points, total_spent, visit_count, birthday, membership_tier')
+            .eq('id', selectedCustomer.id)
+            .single();
 
-          if (activeEvents && activeEvents.length > 0) {
-            // Check for birthday bonus
+          if (customerFetchError || !customerRow) {
+            console.error('Customer fetch error:', customerFetchError);
+          } else {
+            const currentTier = customerRow.membership_tier || (Number(customerRow.total_spent) >= 100 ? 'gold' : Number(customerRow.total_spent) >= 50 ? 'silver' : 'bronze');
+            const tierMultiplier = currentTier === 'gold' ? 1.5 : currentTier === 'silver' ? 1.25 : 1;
+
+            // Check for active loyalty events
+            let eventMultiplier = 1;
+            const nowIso = new Date().toISOString();
+            const { data: activeEvents, error: eventsError } = await supabase
+              .from('loyalty_events')
+              .select('multiplier, event_type')
+              .eq('is_active', true)
+              .lte('start_date', nowIso)
+              .gte('end_date', nowIso);
+
+            if (eventsError) {
+              console.error('Loyalty events load error:', eventsError);
+            }
+
             const today = new Date();
-            const customerBirthday = selectedCustomer.birthday ? new Date(selectedCustomer.birthday) : null;
-            const isBirthday = customerBirthday && 
-              customerBirthday.getMonth() === today.getMonth() && 
+            const customerBirthday = customerRow.birthday ? new Date(customerRow.birthday) : null;
+            const isBirthday = !!customerBirthday &&
+              customerBirthday.getMonth() === today.getMonth() &&
               customerBirthday.getDate() === today.getDate();
 
-            activeEvents.forEach(event => {
-              if (event.event_type === 'birthday' && isBirthday) {
-                eventMultiplier = Math.max(eventMultiplier, event.multiplier);
-              } else if (event.event_type === 'general') {
-                eventMultiplier = Math.max(eventMultiplier, event.multiplier);
+            (activeEvents || []).forEach((event) => {
+              const multiplier = Number(event.multiplier) || 1;
+              if (event.event_type === 'birthday') {
+                if (isBirthday) eventMultiplier = Math.max(eventMultiplier, multiplier);
+                return;
+              }
+
+              // Default behavior: multiplier/bonus apply during their active window
+              if (event.event_type === 'multiplier' || event.event_type === 'bonus') {
+                eventMultiplier = Math.max(eventMultiplier, multiplier);
               }
             });
-          }
 
-          // Calculate points: base points × tier multiplier × event multiplier
-          const basePoints = Math.floor(total * settings.loyaltyPointsPerDollar);
-          const earnedPoints = Math.floor(basePoints * tierMultiplier * eventMultiplier);
-          
-          // Update customer points, total_spent, and visit_count
-          const newTotalSpent = Number(selectedCustomer.total_spent) + total;
-          const newTier = newTotalSpent >= 100 ? 'gold' : newTotalSpent >= 50 ? 'silver' : 'bronze';
-          
-          const { error: customerError } = await supabase
-            .from('customers')
-            .update({
-              points: Number(selectedCustomer.points) + earnedPoints,
-              total_spent: newTotalSpent,
-              visit_count: Number(selectedCustomer.visit_count) + 1,
-              membership_tier: newTier,
-            })
-            .eq('id', selectedCustomer.id);
+            // Calculate points: base points × tier multiplier × event multiplier
+            const basePoints = Math.floor(total * settings.loyaltyPointsPerDollar);
+            const earnedPoints = Math.floor(basePoints * tierMultiplier * eventMultiplier);
 
-          if (customerError) {
-            console.error('Customer update error:', customerError);
-          } else {
-            // Record transaction history
-            await supabase
-              .from('customer_transactions')
-              .insert({
-                customer_id: selectedCustomer.id,
-                type: 'earn',
-                points: earnedPoints,
-                sale_id: saleData.id,
-                description: `Earned ${earnedPoints} pts from $${total.toFixed(2)} purchase`,
+            // Update customer points, total_spent, and visit_count
+            const newTotalSpent = Number(customerRow.total_spent) + total;
+            const newTier = newTotalSpent >= 100 ? 'gold' : newTotalSpent >= 50 ? 'silver' : 'bronze';
+
+            const { error: customerError } = await supabase
+              .from('customers')
+              .update({
+                points: Number(customerRow.points) + earnedPoints,
+                total_spent: newTotalSpent,
+                visit_count: Number(customerRow.visit_count) + 1,
+                membership_tier: newTier,
+              })
+              .eq('id', customerRow.id);
+
+            if (customerError) {
+              console.error('Customer update error:', customerError);
+            } else {
+              // Record transaction history
+              await supabase
+                .from('customer_transactions')
+                .insert({
+                  customer_id: customerRow.id,
+                  type: 'earn',
+                  points: earnedPoints,
+                  sale_id: saleData.id,
+                  description: `Earned ${earnedPoints} pts from $${total.toFixed(2)} purchase`,
+                });
+
+              const multiplierNote = tierMultiplier > 1 || eventMultiplier > 1
+                ? ` (${tierMultiplier > 1 ? `${currentTier} ${tierMultiplier}x` : ''}${eventMultiplier > 1 ? ` Event ${eventMultiplier}x` : ''})`
+                : '';
+
+              toast({
+                title: "Points Earned!",
+                description: `${customerRow.name} earned ${earnedPoints} points${multiplierNote}`,
               });
-
-            const multiplierNote = tierMultiplier > 1 || eventMultiplier > 1 
-              ? ` (${tierMultiplier > 1 ? `${selectedCustomer.membership_tier} ${tierMultiplier}x` : ''}${eventMultiplier > 1 ? ` Event ${eventMultiplier}x` : ''})` 
-              : '';
-            
-            toast({
-              title: "Points Earned!",
-              description: `${selectedCustomer.name} earned ${earnedPoints} points${multiplierNote}`,
-            });
+            }
           }
         } catch (loyaltyError) {
           console.error('Loyalty points error:', loyaltyError);
@@ -1173,6 +1189,7 @@ const POS = () => {
           // Clear cart and reset
           setCart([]);
           setCustomerName("");
+          setSelectedCustomer(null);
           
           // Refresh current totals
           loadCurrentShift();
@@ -1190,6 +1207,7 @@ const POS = () => {
           modifiers: item.selectedModifiers,
         }))}
         customerName={customerName}
+        customerId={selectedCustomer?.id}
         userId={user?.id || ''}
         shiftId={currentShift?.id}
       />
