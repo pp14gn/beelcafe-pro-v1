@@ -14,6 +14,10 @@ interface Customer {
   email: string | null;
   phone: string | null;
   points: number;
+  total_spent: number;
+  visit_count: number;
+  birthday: string | null;
+  membership_tier: string;
 }
 
 interface CustomerSelectDialogProps {
@@ -37,7 +41,7 @@ const CustomerSelectDialog = ({
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('id, name, email, phone, points')
+        .select('id, name, email, phone, points, total_spent, visit_count, birthday, membership_tier')
         .order('name');
 
       if (error) throw error;
