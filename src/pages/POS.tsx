@@ -476,7 +476,8 @@ const POS = () => {
     try {
       const total = getTotalPrice();
       
-      const { error: saleError } = await supabase
+      // Insert sale with customer_id if selected
+      const { data: saleData, error: saleError } = await supabase
         .from('sales')
         .insert({
           user_id: user.id,
@@ -484,7 +485,10 @@ const POS = () => {
           items: cart as any,
           total_amount: total,
           payment_method: paymentMethod,
-        });
+          customer_id: selectedCustomer?.id || null,
+        })
+        .select('id')
+        .single();
 
       if (saleError) {
         console.error('Sale recording error:', saleError);
@@ -496,6 +500,86 @@ const POS = () => {
         return;
       }
 
+      // Award loyalty points if customer is selected and loyalty is enabled
+      if (selectedCustomer && settings.loyaltyEnabled) {
+        try {
+          // Get tier multiplier
+          const tierMultiplier = selectedCustomer.membership_tier === 'gold' ? 1.5 
+            : selectedCustomer.membership_tier === 'silver' ? 1.25 : 1;
+          
+          // Check for active loyalty events
+          let eventMultiplier = 1;
+          const now = new Date().toISOString();
+          const { data: activeEvents } = await supabase
+            .from('loyalty_events')
+            .select('multiplier, event_type')
+            .eq('is_active', true)
+            .lte('start_date', now)
+            .gte('end_date', now);
+
+          if (activeEvents && activeEvents.length > 0) {
+            // Check for birthday bonus
+            const today = new Date();
+            const customerBirthday = selectedCustomer.birthday ? new Date(selectedCustomer.birthday) : null;
+            const isBirthday = customerBirthday && 
+              customerBirthday.getMonth() === today.getMonth() && 
+              customerBirthday.getDate() === today.getDate();
+
+            activeEvents.forEach(event => {
+              if (event.event_type === 'birthday' && isBirthday) {
+                eventMultiplier = Math.max(eventMultiplier, event.multiplier);
+              } else if (event.event_type === 'general') {
+                eventMultiplier = Math.max(eventMultiplier, event.multiplier);
+              }
+            });
+          }
+
+          // Calculate points: base points × tier multiplier × event multiplier
+          const basePoints = Math.floor(total * settings.loyaltyPointsPerDollar);
+          const earnedPoints = Math.floor(basePoints * tierMultiplier * eventMultiplier);
+          
+          // Update customer points, total_spent, and visit_count
+          const newTotalSpent = Number(selectedCustomer.total_spent) + total;
+          const newTier = newTotalSpent >= 100 ? 'gold' : newTotalSpent >= 50 ? 'silver' : 'bronze';
+          
+          const { error: customerError } = await supabase
+            .from('customers')
+            .update({
+              points: Number(selectedCustomer.points) + earnedPoints,
+              total_spent: newTotalSpent,
+              visit_count: Number(selectedCustomer.visit_count) + 1,
+              membership_tier: newTier,
+            })
+            .eq('id', selectedCustomer.id);
+
+          if (customerError) {
+            console.error('Customer update error:', customerError);
+          } else {
+            // Record transaction history
+            await supabase
+              .from('customer_transactions')
+              .insert({
+                customer_id: selectedCustomer.id,
+                type: 'earn',
+                points: earnedPoints,
+                sale_id: saleData.id,
+                description: `Earned ${earnedPoints} pts from $${total.toFixed(2)} purchase`,
+              });
+
+            const multiplierNote = tierMultiplier > 1 || eventMultiplier > 1 
+              ? ` (${tierMultiplier > 1 ? `${selectedCustomer.membership_tier} ${tierMultiplier}x` : ''}${eventMultiplier > 1 ? ` Event ${eventMultiplier}x` : ''})` 
+              : '';
+            
+            toast({
+              title: "Points Earned!",
+              description: `${selectedCustomer.name} earned ${earnedPoints} points${multiplierNote}`,
+            });
+          }
+        } catch (loyaltyError) {
+          console.error('Loyalty points error:', loyaltyError);
+        }
+      }
+
       const { error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -505,7 +589,7 @@ const POS = () => {
           total_amount: total,
           status: 'pending',
           start_time: new Date().toISOString(),
-          customer_name: customerName.trim() || null,
+          customer_name: customerName.trim() || selectedCustomer?.name || null,
         });
 
       if (orderError) {
@@ -520,7 +604,6 @@ const POS = () => {
 
         if (inventoryError) {
           console.error('Inventory update error:', inventoryError);
-          // Don't fail the sale if inventory update fails, just log it
         }
       } catch (inventoryError) {
         console.error('Inventory update error:', inventoryError);
@@ -541,7 +624,7 @@ const POS = () => {
             })),
             total,
             paymentMethod,
-            customerName: customerName.trim() || undefined,
+            customerName: customerName.trim() || selectedCustomer?.name || undefined,
             cashier: user?.email || 'Unknown',
             timestamp: new Date(),
             receiptNumber: receiptPrinter.generateReceiptNumber()
