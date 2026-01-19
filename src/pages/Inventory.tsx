@@ -8,6 +8,7 @@ import EditInventoryDialog from "@/components/EditInventoryDialog";
 import RestockDialog from "@/components/RestockDialog";
 import InventoryCountDialog from "@/components/InventoryCountDialog";
 import InventoryCountHistoryDialog from "@/components/InventoryCountHistoryDialog";
+import DeleteAllInventoryDialog from "@/components/DeleteAllInventoryDialog";
 import { 
   Table,
   TableBody,
@@ -27,11 +28,13 @@ import {
   Edit,
   RefreshCw,
   ClipboardList,
-  FileText
+  FileText,
+  Trash2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useAuth } from "@/contexts/AuthContext";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -55,10 +58,12 @@ const Inventory = () => {
   const [restockDialogOpen, setRestockDialogOpen] = useState(false);
   const [countDialogOpen, setCountDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [inventoryData, setInventoryData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { userProfile } = useAuth();
 
   useEffect(() => {
     loadInventory();
@@ -244,6 +249,17 @@ const Inventory = () => {
           <p className="text-xs sm:text-sm text-muted-foreground">Monitor stock levels and manage inventory</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          {userProfile?.role === "admin" && inventoryData.length > 0 && (
+            <Button 
+              variant="outline"
+              size="sm"
+              className="gap-2 w-full sm:w-auto text-destructive border-destructive/50 hover:bg-destructive/10"
+              onClick={() => setDeleteAllDialogOpen(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete All
+            </Button>
+          )}
           <Button 
             variant="outline"
             size="sm"
@@ -542,6 +558,14 @@ const Inventory = () => {
       <InventoryCountHistoryDialog
         isOpen={historyDialogOpen}
         onClose={() => setHistoryDialogOpen(false)}
+      />
+
+      {/* Delete All Inventory Dialog */}
+      <DeleteAllInventoryDialog
+        open={deleteAllDialogOpen}
+        onOpenChange={setDeleteAllDialogOpen}
+        onSuccess={handleDialogSuccess}
+        itemCount={inventoryData.length}
       />
     </div>
   );
