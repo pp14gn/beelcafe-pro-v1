@@ -9,6 +9,7 @@ import RestockDialog from "@/components/RestockDialog";
 import InventoryCountDialog from "@/components/InventoryCountDialog";
 import InventoryCountHistoryDialog from "@/components/InventoryCountHistoryDialog";
 import DeleteAllInventoryDialog from "@/components/DeleteAllInventoryDialog";
+import BulkUploadInventoryDialog from "@/components/BulkUploadInventoryDialog";
 import { 
   Table,
   TableBody,
@@ -29,7 +30,8 @@ import {
   RefreshCw,
   ClipboardList,
   FileText,
-  Trash2
+  Trash2,
+  FileSpreadsheet
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -59,6 +61,7 @@ const Inventory = () => {
   const [countDialogOpen, setCountDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  const [bulkUploadDialogOpen, setBulkUploadDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [inventoryData, setInventoryData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -285,6 +288,15 @@ const Inventory = () => {
           >
             <ClipboardList className="h-4 w-4" />
             Start Count
+          </Button>
+          <Button 
+            variant="outline"
+            size="sm"
+            className="gap-2 w-full sm:w-auto"
+            onClick={() => setBulkUploadDialogOpen(true)}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Bulk Upload
           </Button>
           <Button 
             className="gap-2 bg-gradient-coffee hover:opacity-90 w-full sm:w-auto"
@@ -566,6 +578,13 @@ const Inventory = () => {
         onOpenChange={setDeleteAllDialogOpen}
         onSuccess={handleDialogSuccess}
         itemCount={inventoryData.length}
+      />
+
+      {/* Bulk Upload Inventory Dialog */}
+      <BulkUploadInventoryDialog
+        isOpen={bulkUploadDialogOpen}
+        onClose={() => setBulkUploadDialogOpen(false)}
+        onSuccess={handleDialogSuccess}
       />
     </div>
   );
