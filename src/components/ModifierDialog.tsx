@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,17 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Ruler } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface RecipeSize {
+  id: string;
+  name: string;
+  price_adjustment: number;
+  ingredient_multiplier: number;
+  is_default: boolean;
+}
 
 interface ModifierDialogProps {
   isOpen: boolean;
@@ -18,6 +29,7 @@ interface ModifierDialogProps {
     id: string;
     name: string;
     price: number;
+    has_sizes?: boolean;
     modifiers?: {
       id: string;
       inventory_item: {
@@ -38,6 +50,7 @@ interface ModifierDialogProps {
       };
       quantity: number;
     }[];
+    selectedSize?: RecipeSize;
   };
   onConfirm: (itemId: string, selectedModifiers: {
     id: string;
@@ -48,7 +61,7 @@ interface ModifierDialogProps {
       unit: string;
     };
     quantity: number;
-  }[]) => void;
+  }[], selectedSize?: RecipeSize) => void;
 }
 
 const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProps) => {
@@ -62,6 +75,46 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
     };
     quantity: number;
   }[]>(item.selectedModifiers || []);
+  const [sizes, setSizes] = useState<RecipeSize[]>([]);
+  const [selectedSize, setSelectedSize] = useState<RecipeSize | undefined>(item.selectedSize);
+  const [loadingSizes, setLoadingSizes] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && item.has_sizes) {
+      loadSizes();
+    }
+  }, [isOpen, item.id, item.has_sizes]);
+
+  useEffect(() => {
+    setSelectedModifiers(item.selectedModifiers || []);
+    setSelectedSize(item.selectedSize);
+  }, [item]);
+
+  const loadSizes = async () => {
+    setLoadingSizes(true);
+    try {
+      const { data, error } = await supabase
+        .from('recipe_sizes')
+        .select('*')
+        .eq('recipe_id', item.id)
+        .eq('is_active', true)
+        .order('sort_order');
+
+      if (error) throw error;
+
+      setSizes(data || []);
+      
+      // Set default size if none selected
+      if (!selectedSize && data && data.length > 0) {
+        const defaultSize = data.find(s => s.is_default) || data[0];
+        setSelectedSize(defaultSize);
+      }
+    } catch (error) {
+      console.error('Error loading sizes:', error);
+    } finally {
+      setLoadingSizes(false);
+    }
+  };
 
   const handleModifierToggle = (modifier: {
     id: string;
@@ -81,11 +134,18 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
   };
 
   const handleConfirm = () => {
-    onConfirm(item.id, selectedModifiers);
+    onConfirm(item.id, selectedModifiers, selectedSize);
     onClose();
   };
 
+  const getEffectivePrice = () => {
+    const basePrice = item.price;
+    const sizeAdjustment = selectedSize?.price_adjustment || 0;
+    return basePrice + sizeAdjustment;
+  };
+
   const totalModifierCost = selectedModifiers.reduce((sum, mod) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0);
+  const effectivePrice = getEffectivePrice();
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -97,36 +157,77 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Size Selection */}
+          {item.has_sizes && sizes.length > 0 && (
+            <>
+              <div>
+                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <Ruler className="h-4 w-4" />
+                  Select Size
+                </h4>
+                <ToggleGroup
+                  type="single"
+                  value={selectedSize?.id || ""}
+                  onValueChange={(value) => {
+                    const size = sizes.find(s => s.id === value);
+                    if (size) setSelectedSize(size);
+                  }}
+                  className="flex flex-wrap gap-2"
+                >
+                  {sizes.map((size) => (
+                    <ToggleGroupItem
+                      key={size.id}
+                      value={size.id}
+                      className="flex-1 min-w-[80px] data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      <div className="flex flex-col items-center">
+                        <span className="font-medium">{size.name}</span>
+                        <span className="text-xs opacity-75">
+                          {size.price_adjustment >= 0 ? '+' : ''}${size.price_adjustment.toFixed(2)}
+                        </span>
+                      </div>
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+              <Separator />
+            </>
+          )}
+
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Base Price:</span>
-            <span className="font-semibold text-coffee-gold">${item.price.toFixed(2)}</span>
+            <span className="text-sm text-muted-foreground">
+              {item.has_sizes && selectedSize ? `${selectedSize.name} Price:` : 'Base Price:'}
+            </span>
+            <span className="font-semibold text-coffee-gold">${effectivePrice.toFixed(2)}</span>
           </div>
 
           <Separator />
 
-          <div>
-            <h4 className="text-sm font-semibold text-foreground mb-3">Available Modifiers</h4>
-            <div className="space-y-3">
-              {item.modifiers?.map((modifier) => (
-                <div key={modifier.id} className="flex items-center justify-between space-x-3">
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id={modifier.id}
-                      checked={selectedModifiers.some(m => m.id === modifier.id)}
-                      onCheckedChange={() => handleModifierToggle(modifier)}
-                    />
-                    <label
-                      htmlFor={modifier.id}
-                      className="text-sm text-foreground cursor-pointer"
-                    >
-                      {modifier.inventory_item.name} x{modifier.quantity} {modifier.inventory_item.unit}
-                    </label>
+          {item.modifiers && item.modifiers.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-foreground mb-3">Available Modifiers</h4>
+              <div className="space-y-3">
+                {item.modifiers?.map((modifier) => (
+                  <div key={modifier.id} className="flex items-center justify-between space-x-3">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id={modifier.id}
+                        checked={selectedModifiers.some(m => m.id === modifier.id)}
+                        onCheckedChange={() => handleModifierToggle(modifier)}
+                      />
+                      <label
+                        htmlFor={modifier.id}
+                        className="text-sm text-foreground cursor-pointer"
+                      >
+                        {modifier.inventory_item.name} x{modifier.quantity} {modifier.inventory_item.unit}
+                      </label>
+                    </div>
+                    <span className="text-sm text-muted-foreground">+${(modifier.inventory_item.cost_per_unit * modifier.quantity).toFixed(2)}</span>
                   </div>
-                  <span className="text-sm text-muted-foreground">+${(modifier.inventory_item.cost_per_unit * modifier.quantity).toFixed(2)}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {selectedModifiers.length > 0 && (
             <>
@@ -149,7 +250,7 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
           <div className="flex items-center justify-between">
             <span className="font-semibold text-foreground">Total Price:</span>
             <span className="text-lg font-bold text-coffee-gold">
-              ${(item.price + totalModifierCost).toFixed(2)}
+              ${(effectivePrice + totalModifierCost).toFixed(2)}
             </span>
           </div>
         </div>

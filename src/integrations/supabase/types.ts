@@ -566,12 +566,60 @@ export type Database = {
           },
         ]
       }
+      recipe_sizes: {
+        Row: {
+          created_at: string
+          id: string
+          ingredient_multiplier: number
+          is_active: boolean
+          is_default: boolean
+          name: string
+          price_adjustment: number
+          recipe_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ingredient_multiplier?: number
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          price_adjustment?: number
+          recipe_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ingredient_multiplier?: number
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          price_adjustment?: number
+          recipe_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_sizes_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recipes: {
         Row: {
           base_price: number
           category: string
           created_at: string
           description: string | null
+          has_sizes: boolean
           id: string
           instructions: Json | null
           is_active: boolean
@@ -585,6 +633,7 @@ export type Database = {
           category: string
           created_at?: string
           description?: string | null
+          has_sizes?: boolean
           id?: string
           instructions?: Json | null
           is_active?: boolean
@@ -598,6 +647,7 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          has_sizes?: boolean
           id?: string
           instructions?: Json | null
           is_active?: boolean

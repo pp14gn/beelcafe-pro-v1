@@ -36,11 +36,20 @@ import {
 } from "lucide-react";
 
 
+interface RecipeSize {
+  id: string;
+  name: string;
+  price_adjustment: number;
+  ingredient_multiplier: number;
+  is_default: boolean;
+}
+
 interface MenuItem {
   id: string;
   name: string;
   price: number;
   category: string;
+  has_sizes?: boolean;
   modifiers?: {
     id: string;
     inventory_item: {
@@ -65,6 +74,7 @@ interface OrderItem extends MenuItem {
     };
     quantity: number;
   }[];
+  selectedSize?: RecipeSize;
 }
 
 const POS = () => {
@@ -122,6 +132,7 @@ const POS = () => {
           base_price,
           category,
           is_active,
+          has_sizes,
           recipe_modifiers (
             id,
             quantity,
@@ -151,6 +162,7 @@ const POS = () => {
         name: recipe.name,
         price: Number(recipe.base_price),
         category: recipe.category,
+        has_sizes: recipe.has_sizes || false,
         modifiers: recipe.recipe_modifiers
           ?.filter(modifier => modifier.is_active && modifier.inventory_item)
           ?.map(modifier => ({
@@ -276,7 +288,8 @@ const POS = () => {
 
   const getTotalPrice = () => {
     return cart.reduce((total, item) => {
-      const basePrice = item.price * item.quantity;
+      const sizeAdjustment = item.selectedSize?.price_adjustment || 0;
+      const basePrice = (item.price + sizeAdjustment) * item.quantity;
       const modifierPrice = item.selectedModifiers.reduce((modTotal, modifier) => 
         modTotal + (modifier.inventory_item.cost_per_unit * modifier.quantity * item.quantity), 0
       );
@@ -363,8 +376,22 @@ const POS = () => {
   };
 
   const addItemToCart = (menuItem: MenuItem) => {
+    // If item has sizes or modifiers, always open customize dialog
+    if (menuItem.has_sizes || (menuItem.modifiers && menuItem.modifiers.length > 0)) {
+      const orderItem: OrderItem = {
+        ...menuItem,
+        quantity: 1,
+        selectedModifiers: [],
+        selectedSize: undefined
+      };
+      setCart([...cart, orderItem]);
+      setSelectedItem(orderItem);
+      setCustomizeDialogOpen(true);
+      return;
+    }
+
     const existingItemIndex = cart.findIndex(item => 
-      item.id === menuItem.id && item.selectedModifiers.length === 0
+      item.id === menuItem.id && item.selectedModifiers.length === 0 && !item.selectedSize
     );
 
     if (existingItemIndex >= 0) {
@@ -375,15 +402,10 @@ const POS = () => {
       const orderItem: OrderItem = {
         ...menuItem,
         quantity: 1,
-        selectedModifiers: []
+        selectedModifiers: [],
+        selectedSize: undefined
       };
       setCart([...cart, orderItem]);
-      
-      // If item has modifiers, automatically open customize dialog
-      if (menuItem.modifiers && menuItem.modifiers.length > 0) {
-        setSelectedItem(orderItem);
-        setCustomizeDialogOpen(true);
-      }
     }
   };
 
@@ -416,11 +438,11 @@ const POS = () => {
       unit: string;
     };
     quantity: number;
-  }[]) => {
+  }[], selectedSize?: RecipeSize) => {
     const index = cart.findIndex(item => item === selectedItem);
     if (index >= 0) {
       const updatedCart = [...cart];
-      updatedCart[index] = { ...updatedCart[index], selectedModifiers };
+      updatedCart[index] = { ...updatedCart[index], selectedModifiers, selectedSize };
       setCart(updatedCart);
     }
   };
