@@ -23,6 +23,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Plus, Trash2, Edit3, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import RecipeSizesManager from "./RecipeSizesManager";
 
 interface EditRecipeDialogProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
     prep_time: "",
     servings: "1",
     instructions: "",
+    has_sizes: false,
   });
   const [modifiers, setModifiers] = useState<any[]>([]);
   const [editingModifier, setEditingModifier] = useState<any>(null);
@@ -84,6 +86,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
         instructions: Array.isArray(recipe.instructions) 
           ? recipe.instructions.join('\n') 
           : (recipe.instructions || ""),
+        has_sizes: recipe.has_sizes || false,
       });
       loadRecipeModifiers();
       loadRecipeIngredients();
@@ -340,6 +343,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
           prep_time: parseInt(formData.prep_time),
           servings: parseInt(formData.servings),
           instructions: instructionsArray,
+          has_sizes: formData.has_sizes,
         })
         .eq("id", recipe.id);
 
@@ -454,6 +458,17 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
               rows={6}
             />
           </div>
+
+          <Separator />
+
+          {/* Recipe Sizes */}
+          {recipe?.id && (
+            <RecipeSizesManager
+              recipeId={recipe.id}
+              hasSizes={formData.has_sizes}
+              onHasSizesChange={(hasSizes) => setFormData(prev => ({ ...prev, has_sizes: hasSizes }))}
+            />
+          )}
 
           <Separator />
 
