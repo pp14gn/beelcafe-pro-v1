@@ -13,6 +13,7 @@ import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useToast } from "@/hooks/use-toast";
 import { MercadoPagoSettings } from "@/components/MercadoPagoSettings";
 import { CategoryManagement } from "@/components/CategoryManagement";
+import { PromotionsManager } from "@/components/PromotionsManager";
 import { 
   Settings as SettingsIcon, 
   Store, 
@@ -24,7 +25,8 @@ import {
   CreditCard,
   Clock,
   Tags,
-  Languages
+  Languages,
+  Tag
 } from "lucide-react";
 
 const Settings = () => {
@@ -113,11 +115,12 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general">{t('settings.general')}</TabsTrigger>
           <TabsTrigger value="categories">{t('settings.categories')}</TabsTrigger>
+          <TabsTrigger value="promotions">Promotions</TabsTrigger>
           <TabsTrigger value="hours">{t('settings.hours')}</TabsTrigger>
-          <TabsTrigger value="mercadopago">MercadoPago Settings</TabsTrigger>
+          <TabsTrigger value="mercadopago">MercadoPago</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
@@ -419,6 +422,12 @@ const Settings = () => {
 
         <TabsContent value="categories" className="space-y-6">
           <CategoryManagement />
+        </TabsContent>
+
+        <TabsContent value="promotions" className="space-y-6">
+          <Card className="p-6">
+            <PromotionsManager />
+          </Card>
         </TabsContent>
 
         <TabsContent value="hours" className="space-y-6">

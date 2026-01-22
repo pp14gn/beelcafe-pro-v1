@@ -485,6 +485,84 @@ export type Database = {
           },
         ]
       }
+      promotion_recipes: {
+        Row: {
+          created_at: string
+          id: string
+          promotion_id: string
+          recipe_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          promotion_id: string
+          recipe_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          promotion_id?: string
+          recipe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_recipes_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_recipes_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotions: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount_type: string
+          discount_value: number
+          end_date: string
+          id: string
+          is_active: boolean
+          min_purchase_amount: number | null
+          name: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date: string
+          id?: string
+          is_active?: boolean
+          min_purchase_amount?: number | null
+          name: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          min_purchase_amount?: number | null
+          name?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       recipe_ingredients: {
         Row: {
           created_at: string
