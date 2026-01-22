@@ -12,6 +12,7 @@ import CashOutDialog from "@/components/CashOutDialog";
 import StartShiftDialog from "@/components/StartShiftDialog";
 import InventoryWarningDialog from "@/components/InventoryWarningDialog";
 import CardPaymentDialog from "@/components/CardPaymentDialog";
+import PayWithPointsDialog from "@/components/PayWithPointsDialog";
 import RealtimeClock from "@/components/RealtimeClock";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -32,7 +33,9 @@ import {
   Clock,
   StopCircle,
   AlertCircle,
-  Search
+  Search,
+  Coins,
+  Tag
 } from "lucide-react";
 
 
@@ -44,12 +47,21 @@ interface RecipeSize {
   is_default: boolean;
 }
 
+interface Promotion {
+  id: string;
+  name: string;
+  discount_type: string;
+  discount_value: number;
+  recipe_ids: string[];
+}
+
 interface MenuItem {
   id: string;
   name: string;
   price: number;
   category: string;
   has_sizes?: boolean;
+  promotion?: Promotion;
   modifiers?: {
     id: string;
     inventory_item: {
@@ -75,6 +87,7 @@ interface OrderItem extends MenuItem {
     quantity: number;
   }[];
   selectedSize?: RecipeSize;
+  discountedPrice?: number;
 }
 
 const POS = () => {
@@ -100,6 +113,9 @@ const POS = () => {
   const [customerName, setCustomerName] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customerSelectDialogOpen, setCustomerSelectDialogOpen] = useState(false);
+  const [activePromotions, setActivePromotions] = useState<Promotion[]>([]);
+  const [payWithPointsOpen, setPayWithPointsOpen] = useState(false);
+  const [pointsDiscount, setPointsDiscount] = useState(0);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -118,7 +134,58 @@ const POS = () => {
     loadCurrentShift();
     loadCurrentCashTotal();
     loadMenuItems();
+    loadActivePromotions();
   }, [user]);
+
+  const loadActivePromotions = async () => {
+    try {
+      const now = new Date().toISOString();
+      const { data: promotions, error } = await supabase
+        .from('promotions')
+        .select('id, name, discount_type, discount_value')
+        .eq('is_active', true)
+        .lte('start_date', now)
+        .gte('end_date', now);
+
+      if (error) throw error;
+
+      // Get recipe associations for each promotion
+      const promotionsWithRecipes = await Promise.all(
+        (promotions || []).map(async (promo) => {
+          const { data: recipeLinks } = await supabase
+            .from('promotion_recipes')
+            .select('recipe_id')
+            .eq('promotion_id', promo.id);
+
+          return {
+            ...promo,
+            recipe_ids: recipeLinks?.map(r => r.recipe_id) || [],
+          };
+        })
+      );
+
+      setActivePromotions(promotionsWithRecipes);
+    } catch (error) {
+      console.error('Error loading promotions:', error);
+    }
+  };
+
+  const getPromotionForRecipe = (recipeId: string): Promotion | undefined => {
+    // Find a promotion that applies to this recipe (or applies to all if no recipes specified)
+    return activePromotions.find(promo => 
+      promo.recipe_ids.length === 0 || promo.recipe_ids.includes(recipeId)
+    );
+  };
+
+  const calculateDiscountedPrice = (basePrice: number, promotion?: Promotion): number => {
+    if (!promotion) return basePrice;
+    
+    if (promotion.discount_type === 'percentage') {
+      return basePrice * (1 - Number(promotion.discount_value) / 100);
+    } else {
+      return Math.max(0, basePrice - Number(promotion.discount_value));
+    }
+  };
 
   const loadMenuItems = async () => {
     try {
@@ -287,9 +354,23 @@ const POS = () => {
   };
 
   const getTotalPrice = () => {
+    const subtotal = cart.reduce((total, item) => {
+      const sizeAdjustment = item.selectedSize?.price_adjustment || 0;
+      const itemPrice = item.discountedPrice !== undefined ? item.discountedPrice : item.price;
+      const basePrice = (itemPrice + sizeAdjustment) * item.quantity;
+      const modifierPrice = item.selectedModifiers.reduce((modTotal, modifier) => 
+        modTotal + (modifier.inventory_item.cost_per_unit * modifier.quantity * item.quantity), 0
+      );
+      return total + basePrice + modifierPrice;
+    }, 0);
+    return Math.max(0, subtotal - pointsDiscount);
+  };
+
+  const getSubtotalBeforePoints = () => {
     return cart.reduce((total, item) => {
       const sizeAdjustment = item.selectedSize?.price_adjustment || 0;
-      const basePrice = (item.price + sizeAdjustment) * item.quantity;
+      const itemPrice = item.discountedPrice !== undefined ? item.discountedPrice : item.price;
+      const basePrice = (itemPrice + sizeAdjustment) * item.quantity;
       const modifierPrice = item.selectedModifiers.reduce((modTotal, modifier) => 
         modTotal + (modifier.inventory_item.cost_per_unit * modifier.quantity * item.quantity), 0
       );
@@ -376,13 +457,19 @@ const POS = () => {
   };
 
   const addItemToCart = (menuItem: MenuItem) => {
+    // Get promotion for this item
+    const promotion = getPromotionForRecipe(menuItem.id);
+    const discountedPrice = promotion ? calculateDiscountedPrice(menuItem.price, promotion) : undefined;
+
     // If item has sizes or modifiers, always open customize dialog
     if (menuItem.has_sizes || (menuItem.modifiers && menuItem.modifiers.length > 0)) {
       const orderItem: OrderItem = {
         ...menuItem,
         quantity: 1,
         selectedModifiers: [],
-        selectedSize: undefined
+        selectedSize: undefined,
+        promotion,
+        discountedPrice,
       };
       setCart([...cart, orderItem]);
       setSelectedItem(orderItem);
@@ -403,7 +490,9 @@ const POS = () => {
         ...menuItem,
         quantity: 1,
         selectedModifiers: [],
-        selectedSize: undefined
+        selectedSize: undefined,
+        promotion,
+        discountedPrice,
       };
       setCart([...cart, orderItem]);
     }
@@ -689,6 +778,7 @@ const POS = () => {
       setCart([]);
       setCustomerName("");
       setSelectedCustomer(null);
+      setPointsDiscount(0);
       if (paymentMethod === 'cash') {
         setCurrentCashTotal(prev => prev + total);
       }
@@ -897,30 +987,51 @@ const POS = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
-                  {filteredItems.map((item) => (
-                    <Card
-                      key={item.id}
-                      className={`p-3 lg:p-4 transition-all duration-200 border-2 ${
-                        currentShift 
-                          ? "cursor-pointer hover:shadow-coffee hover:border-coffee-gold/30" 
-                          : "opacity-50 cursor-not-allowed"
-                      }`}
-                      onClick={() => currentShift && addToCart(item)}
-                    >
-                      <div className="text-center">
-                        <div className="h-16 w-16 lg:h-20 lg:w-20 mx-auto mb-2 lg:mb-3 rounded-full bg-gradient-cream flex items-center justify-center">
-                          <Coffee className="h-6 w-6 lg:h-8 lg:w-8 text-coffee-bean" />
-                        </div>
-                        <h3 className="font-semibold text-foreground mb-1 text-sm lg:text-base">{item.name}</h3>
-                        <p className="text-base lg:text-lg font-bold text-coffee-gold">${item.price.toFixed(2)}</p>
-                        {item.modifiers && item.modifiers.length > 0 && (
-                          <Badge variant="secondary" className="mt-1 lg:mt-2 text-xs">
-                            Customizable
+                  {filteredItems.map((item) => {
+                    const promotion = getPromotionForRecipe(item.id);
+                    const discountedPrice = promotion ? calculateDiscountedPrice(item.price, promotion) : null;
+                    
+                    return (
+                      <Card
+                        key={item.id}
+                        className={`p-3 lg:p-4 transition-all duration-200 border-2 relative ${
+                          currentShift 
+                            ? "cursor-pointer hover:shadow-coffee hover:border-coffee-gold/30" 
+                            : "opacity-50 cursor-not-allowed"
+                        } ${promotion ? "border-primary/30" : ""}`}
+                        onClick={() => currentShift && addToCart(item)}
+                      >
+                        {promotion && (
+                          <Badge className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs">
+                            <Tag className="h-3 w-3 mr-1" />
+                            {promotion.discount_type === 'percentage' 
+                              ? `${promotion.discount_value}% OFF`
+                              : `$${Number(promotion.discount_value).toFixed(0)} OFF`
+                            }
                           </Badge>
                         )}
-                      </div>
-                    </Card>
-                  ))}
+                        <div className="text-center">
+                          <div className="h-16 w-16 lg:h-20 lg:w-20 mx-auto mb-2 lg:mb-3 rounded-full bg-gradient-cream flex items-center justify-center">
+                            <Coffee className="h-6 w-6 lg:h-8 lg:w-8 text-coffee-bean" />
+                          </div>
+                          <h3 className="font-semibold text-foreground mb-1 text-sm lg:text-base">{item.name}</h3>
+                          {discountedPrice !== null ? (
+                            <div>
+                              <p className="text-xs text-muted-foreground line-through">${item.price.toFixed(2)}</p>
+                              <p className="text-base lg:text-lg font-bold text-primary">${discountedPrice.toFixed(2)}</p>
+                            </div>
+                          ) : (
+                            <p className="text-base lg:text-lg font-bold text-coffee-gold">${item.price.toFixed(2)}</p>
+                          )}
+                          {item.modifiers && item.modifiers.length > 0 && (
+                            <Badge variant="secondary" className="mt-1 lg:mt-2 text-xs">
+                              Customizable
+                            </Badge>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1061,6 +1172,14 @@ const POS = () => {
                     
                     <Separator />
                     
+                    {/* Points Discount Display */}
+                    {pointsDiscount > 0 && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Points Discount:</span>
+                        <span className="text-primary font-medium">-${pointsDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-foreground">Total:</span>
                       <span className="text-xl font-bold text-coffee-gold">
@@ -1068,26 +1187,39 @@ const POS = () => {
                       </span>
                     </div>
                     
+                    {/* Pay with Points Button */}
+                    {selectedCustomer && settings.loyaltyEnabled && (
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                        onClick={() => setPayWithPointsOpen(true)}
+                        disabled={cart.length === 0 || !currentShift}
+                      >
+                        <Coins className="h-4 w-4" />
+                        Pay with Points ({Number(selectedCustomer.points).toLocaleString()} available)
+                      </Button>
+                    )}
+                    
                     <Separator />
                     
                     <div className="grid grid-cols-2 gap-2">
                       <Button 
                         variant="outline" 
                         className="gap-2"
-                      onClick={() => processSale('cash')}
-                      disabled={cart.length === 0 || !currentShift}
+                        onClick={() => processSale('cash')}
+                        disabled={cart.length === 0 || !currentShift}
                       >
                         <DollarSign className="h-4 w-4" />
                         Cash
                       </Button>
-        <Button 
-          className="gap-2 bg-gradient-coffee hover:opacity-90"
-          onClick={() => {
-            if (cart.length === 0 || !currentShift) return;
-            setCardPaymentDialogOpen(true);
-          }}
-          disabled={cart.length === 0 || !currentShift}
-        >
+                      <Button 
+                        className="gap-2 bg-gradient-coffee hover:opacity-90"
+                        onClick={() => {
+                          if (cart.length === 0 || !currentShift) return;
+                          setCardPaymentDialogOpen(true);
+                        }}
+                        disabled={cart.length === 0 || !currentShift}
+                      >
                         <CreditCard className="h-4 w-4" />
                         Card
                       </Button>
@@ -1273,9 +1405,25 @@ const POS = () => {
         onClose={() => setCustomerSelectDialogOpen(false)}
         onSelect={(customer) => {
           setSelectedCustomer(customer);
+          setPointsDiscount(0); // Reset points discount when changing customer
           setCustomerSelectDialogOpen(false);
         }}
       />
+
+      {/* Pay with Points Dialog */}
+      {selectedCustomer && (
+        <PayWithPointsDialog
+          isOpen={payWithPointsOpen}
+          onClose={() => setPayWithPointsOpen(false)}
+          onSuccess={(pointsUsed, remainingAmount) => {
+            setPointsDiscount(pointsUsed / 10); // 10 points = $1
+            setPayWithPointsOpen(false);
+          }}
+          customerId={selectedCustomer.id}
+          customerName={selectedCustomer.name}
+          totalAmount={getSubtotalBeforePoints()}
+        />
+      )}
     </div>
   );
 };
