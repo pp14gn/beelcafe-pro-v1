@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MercadoPagoSettings } from "@/components/MercadoPagoSettings";
 import { CategoryManagement } from "@/components/CategoryManagement";
 import { PromotionsManager } from "@/components/PromotionsManager";
+import { ComboPromotionsManager } from "@/components/ComboPromotionsManager";
 import { 
   Settings as SettingsIcon, 
   Store, 
@@ -427,6 +428,9 @@ const Settings = () => {
         <TabsContent value="promotions" className="space-y-6">
           <Card className="p-6">
             <PromotionsManager />
+          </Card>
+          <Card className="p-6">
+            <ComboPromotionsManager />
           </Card>
         </TabsContent>
 

@@ -83,6 +83,96 @@ export type Database = {
         }
         Relationships: []
       }
+      combo_promotion_items: {
+        Row: {
+          combo_promotion_id: string
+          created_at: string
+          id: string
+          is_free_item: boolean
+          quantity_required: number
+          recipe_id: string
+        }
+        Insert: {
+          combo_promotion_id: string
+          created_at?: string
+          id?: string
+          is_free_item?: boolean
+          quantity_required?: number
+          recipe_id: string
+        }
+        Update: {
+          combo_promotion_id?: string
+          created_at?: string
+          id?: string
+          is_free_item?: boolean
+          quantity_required?: number
+          recipe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "combo_promotion_items_combo_promotion_id_fkey"
+            columns: ["combo_promotion_id"]
+            isOneToOne: false
+            referencedRelation: "combo_promotions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "combo_promotion_items_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      combo_promotions: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount_type: string
+          discount_value: number
+          end_date: string
+          free_quantity: number | null
+          id: string
+          is_active: boolean
+          min_quantity: number | null
+          name: string
+          promotion_type: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date: string
+          free_quantity?: number | null
+          id?: string
+          is_active?: boolean
+          min_quantity?: number | null
+          name: string
+          promotion_type?: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_date?: string
+          free_quantity?: number | null
+          id?: string
+          is_active?: boolean
+          min_quantity?: number | null
+          name?: string
+          promotion_type?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customer_transactions: {
         Row: {
           created_at: string
@@ -969,7 +1059,7 @@ export type Database = {
       get_current_user_role: { Args: never; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      combo_promotion_type: "buy_x_get_y" | "bundle" | "quantity_discount"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1096,6 +1186,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      combo_promotion_type: ["buy_x_get_y", "bundle", "quantity_discount"],
+    },
   },
 } as const
