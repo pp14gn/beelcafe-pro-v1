@@ -26,6 +26,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
 import { 
@@ -65,6 +67,8 @@ const Staff = () => {
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
+  const [deleteFromAuth, setDeleteFromAuth] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -120,23 +124,30 @@ const Staff = () => {
 
   const confirmDeleteStaff = async () => {
     if (!staffToDelete) return;
+    setDeleting(true);
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', staffToDelete.id);
+      const { data, error } = await supabase.functions.invoke('delete-staff-member', {
+        body: {
+          user_id: staffToDelete.id,
+          delete_from_auth: deleteFromAuth
+        }
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
         title: "Staff Member Deleted",
-        description: `${staffToDelete.name} has been removed from the system.`,
+        description: deleteFromAuth 
+          ? `${staffToDelete.name} has been completely removed from the system.`
+          : `${staffToDelete.name} has been removed as a staff member.`,
       });
 
-      fetchStaffData(); // Reload staff data
+      fetchStaffData();
       setDeleteDialogOpen(false);
       setStaffToDelete(null);
+      setDeleteFromAuth(false);
     } catch (error: any) {
       console.error('Error deleting staff member:', error);
       toast({
@@ -144,6 +155,8 @@ const Staff = () => {
         title: "Error",
         description: error.message || "Failed to delete staff member. Please try again.",
       });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -417,21 +430,48 @@ const Staff = () => {
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
+        setDeleteDialogOpen(open);
+        if (!open) {
+          setStaffToDelete(null);
+          setDeleteFromAuth(false);
+        }
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {staffToDelete?.name}? This action cannot be undone and will permanently remove this staff member from the system.
+              Are you sure you want to delete {staffToDelete?.name}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div className="flex items-start space-x-3 p-3 rounded-lg border border-border bg-muted/50">
+              <Checkbox 
+                id="delete-auth"
+                checked={deleteFromAuth}
+                onCheckedChange={(checked) => setDeleteFromAuth(checked as boolean)}
+              />
+              <div className="space-y-1">
+                <Label htmlFor="delete-auth" className="font-medium cursor-pointer">
+                  Also delete login account
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  If checked, the user will be completely removed and won't be able to log in again. 
+                  If unchecked, only the staff profile is removed.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setStaffToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDeleteStaff}
+              disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {deleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
