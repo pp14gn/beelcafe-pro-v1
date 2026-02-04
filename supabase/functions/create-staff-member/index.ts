@@ -160,16 +160,6 @@ Deno.serve(async (req) => {
         is_active: true,
         picture_url: picture_url || null,
       })
-    const { error: profileInsertError } = await adminClient
-      .from('users')
-      .insert({
-        id: authData.user.id,
-        username,
-        full_name,
-        role,
-        is_active: true,
-        picture_url: picture_url || null,
-      })
 
     if (profileInsertError) {
       console.error('Profile error:', profileInsertError)
