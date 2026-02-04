@@ -69,6 +69,8 @@ const Staff = () => {
   const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
   const [deleteFromAuth, setDeleteFromAuth] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -124,9 +126,32 @@ const Staff = () => {
 
   const confirmDeleteStaff = async () => {
     if (!staffToDelete) return;
+    
+    if (!adminPassword.trim()) {
+      setPasswordError("Please enter your password to confirm");
+      return;
+    }
+    
     setDeleting(true);
+    setPasswordError("");
 
     try {
+      // Verify admin password first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error("Unable to verify your identity");
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: adminPassword
+      });
+
+      if (signInError) {
+        setPasswordError("Incorrect password. Please try again.");
+        setDeleting(false);
+        return;
+      }
+
+      // Password verified, proceed with deletion
       const { data, error } = await supabase.functions.invoke('delete-staff-member', {
         body: {
           user_id: staffToDelete.id,
@@ -148,6 +173,7 @@ const Staff = () => {
       setDeleteDialogOpen(false);
       setStaffToDelete(null);
       setDeleteFromAuth(false);
+      setAdminPassword("");
     } catch (error: any) {
       console.error('Error deleting staff member:', error);
       toast({
@@ -435,13 +461,18 @@ const Staff = () => {
         if (!open) {
           setStaffToDelete(null);
           setDeleteFromAuth(false);
+          setAdminPassword("");
+          setPasswordError("");
         }
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete Staff Member
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {staffToDelete?.name}? This action cannot be undone.
+              You are about to delete <strong>{staffToDelete?.name}</strong>. This action requires admin confirmation.
             </AlertDialogDescription>
           </AlertDialogHeader>
           
@@ -457,22 +488,41 @@ const Staff = () => {
                   Also delete login account
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  If checked, the user will be completely removed and won't be able to log in again. 
-                  If unchecked, only the staff profile is removed.
+                  If checked, the user will be completely removed and won't be able to log in again.
                 </p>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="admin-password" className="font-medium">
+                Enter your password to confirm
+              </Label>
+              <Input
+                id="admin-password"
+                type="password"
+                placeholder="Your password"
+                value={adminPassword}
+                onChange={(e) => {
+                  setAdminPassword(e.target.value);
+                  setPasswordError("");
+                }}
+                className={passwordError ? "border-destructive" : ""}
+              />
+              {passwordError && (
+                <p className="text-sm text-destructive">{passwordError}</p>
+              )}
             </div>
           </div>
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <Button 
               onClick={confirmDeleteStaff}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting || !adminPassword.trim()}
+              variant="destructive"
             >
-              {deleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
+              {deleting ? "Verifying..." : "Confirm Delete"}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
