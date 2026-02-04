@@ -91,33 +91,75 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Create the auth user using admin API
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true, // Auto-confirm the email
-    })
-
-    if (authError) {
-      console.error('Auth error:', authError)
-      // Provide user-friendly error message for duplicate emails
-      const errorMessage = authError.message.includes('already been registered')
-        ? 'A user with this email address already exists. Please use a different email.'
-        : authError.message
-      return new Response(
-        JSON.stringify({ error: errorMessage }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    // First check if a user with this email already exists
+    const { data: existingUsers, error: listError } = await adminClient.auth.admin.listUsers()
+    
+    let authUserId: string | null = null
+    let isExistingUser = false
+    
+    if (!listError && existingUsers) {
+      const existingUser = existingUsers.users.find(u => u.email === email)
+      if (existingUser) {
+        // Check if this user already has a profile in the users table
+        const { data: existingProfile } = await adminClient
+          .from('users')
+          .select('id')
+          .eq('id', existingUser.id)
+          .single()
+        
+        if (existingProfile) {
+          return new Response(
+            JSON.stringify({ error: 'This user is already a staff member.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        
+        // User exists in auth but not in users table - we can create their profile
+        authUserId = existingUser.id
+        isExistingUser = true
+      }
     }
+    
+    // Create new auth user if they don't exist
+    if (!isExistingUser) {
+      const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      })
 
-    if (!authData.user) {
-      return new Response(
-        JSON.stringify({ error: 'Failed to create user' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      if (authError) {
+        console.error('Auth error:', authError)
+        const errorMessage = authError.message.includes('already been registered')
+          ? 'A user with this email address already exists. Please use a different email.'
+          : authError.message
+        return new Response(
+          JSON.stringify({ error: errorMessage }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (!authData.user) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to create user' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
+      authUserId = authData.user.id
     }
 
     // Create the user profile using service role (bypasses RLS)
+    const { error: profileInsertError } = await adminClient
+      .from('users')
+      .insert({
+        id: authUserId,
+        username,
+        full_name,
+        role,
+        is_active: true,
+        picture_url: picture_url || null,
+      })
     const { error: profileInsertError } = await adminClient
       .from('users')
       .insert({
@@ -131,8 +173,10 @@ Deno.serve(async (req) => {
 
     if (profileInsertError) {
       console.error('Profile error:', profileInsertError)
-      // If profile creation fails, we should clean up the auth user
-      await adminClient.auth.admin.deleteUser(authData.user.id)
+      // Only delete auth user if we created it (not if it already existed)
+      if (!isExistingUser && authUserId) {
+        await adminClient.auth.admin.deleteUser(authUserId)
+      }
       return new Response(
         JSON.stringify({ error: 'Failed to create user profile' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -143,8 +187,8 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         user: { 
-          id: authData.user.id,
-          email: authData.user.email,
+          id: authUserId,
+          email,
           username,
           full_name,
           role
