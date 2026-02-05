@@ -24,9 +24,11 @@ const BulkUploadInventoryDialog = ({ isOpen, onClose, onSuccess }: BulkUploadInv
       {
         name: "Espresso Beans",
         category: "coffee",
-        current_stock: 50,
-        min_stock: 10,
+        current_stock: 5,
+        min_stock: 1,
         unit: "kg",
+        usage_unit: "g",
+        usage_per_stock_unit: 1000,
         cost_per_unit: 25.00,
         supplier: "Coffee Supplier Co."
       },
@@ -36,15 +38,19 @@ const BulkUploadInventoryDialog = ({ isOpen, onClose, onSuccess }: BulkUploadInv
         current_stock: 20,
         min_stock: 5,
         unit: "L",
+        usage_unit: "mL",
+        usage_per_stock_unit: 1000,
         cost_per_unit: 3.50,
         supplier: "Local Dairy Farm"
       },
       {
         name: "Sugar",
         category: "sweeteners",
-        current_stock: 30,
-        min_stock: 8,
+        current_stock: 10,
+        min_stock: 2,
         unit: "kg",
+        usage_unit: "g",
+        usage_per_stock_unit: 1000,
         cost_per_unit: 2.00,
         supplier: "Food Supplies Inc."
       },
@@ -54,6 +60,8 @@ const BulkUploadInventoryDialog = ({ isOpen, onClose, onSuccess }: BulkUploadInv
         current_stock: 500,
         min_stock: 100,
         unit: "pcs",
+        usage_unit: "",
+        usage_per_stock_unit: 1,
         cost_per_unit: 0.15,
         supplier: "Packaging Direct"
       }
@@ -68,6 +76,8 @@ const BulkUploadInventoryDialog = ({ isOpen, onClose, onSuccess }: BulkUploadInv
       { width: 15 }, // current_stock
       { width: 12 }, // min_stock
       { width: 10 }, // unit
+      { width: 12 }, // usage_unit
+      { width: 20 }, // usage_per_stock_unit
       { width: 15 }, // cost_per_unit
       { width: 25 }  // supplier
     ];
@@ -157,10 +167,16 @@ const BulkUploadInventoryDialog = ({ isOpen, onClose, onSuccess }: BulkUploadInv
         const currentStock = row.current_stock !== undefined ? Number(row.current_stock) : 0;
         const minStock = row.min_stock !== undefined ? Number(row.min_stock) : 0;
         const costPerUnit = row.cost_per_unit !== undefined ? Number(row.cost_per_unit) : 0;
+        const usagePerStockUnit = row.usage_per_stock_unit !== undefined ? Number(row.usage_per_stock_unit) : 1;
 
-        if (isNaN(currentStock) || isNaN(minStock) || isNaN(costPerUnit)) {
-          throw new Error(`Row ${index + 2}: Stock and cost values must be valid numbers`);
+        if (isNaN(currentStock) || isNaN(minStock) || isNaN(costPerUnit) || isNaN(usagePerStockUnit)) {
+          throw new Error(`Row ${index + 2}: Stock, cost, and conversion values must be valid numbers`);
         }
+
+        // Handle usage_unit - if empty string or not provided, set to null
+        const usageUnit = row.usage_unit && String(row.usage_unit).trim() !== '' 
+          ? String(row.usage_unit).trim() 
+          : null;
 
         return {
           name: String(row.name).trim(),
@@ -168,6 +184,8 @@ const BulkUploadInventoryDialog = ({ isOpen, onClose, onSuccess }: BulkUploadInv
           current_stock: currentStock,
           min_stock: minStock,
           unit: String(row.unit).trim(),
+          usage_unit: usageUnit,
+          usage_per_stock_unit: usageUnit ? usagePerStockUnit : 1,
           cost_per_unit: costPerUnit,
           supplier: row.supplier ? String(row.supplier).trim() : null,
           last_restocked: new Date().toISOString()
@@ -278,8 +296,10 @@ const BulkUploadInventoryDialog = ({ isOpen, onClose, onSuccess }: BulkUploadInv
                   <li>• <strong>category</strong>: coffee, dairy, sweeteners, supplies, or consumables (required)</li>
                   <li>• <strong>current_stock</strong>: Current quantity in stock (defaults to 0)</li>
                   <li>• <strong>min_stock</strong>: Minimum stock level for alerts (defaults to 0)</li>
-                  <li>• <strong>unit</strong>: Unit of measurement, e.g., kg, L, pcs (required)</li>
-                  <li>• <strong>cost_per_unit</strong>: Cost per unit in decimal format (defaults to 0)</li>
+                  <li>• <strong>unit</strong>: Stock unit of measurement, e.g., kg, L, pcs (required)</li>
+                  <li>• <strong>usage_unit</strong>: Smaller unit for recipes, e.g., g, mL (optional, leave empty if same as unit)</li>
+                  <li>• <strong>usage_per_stock_unit</strong>: Conversion ratio, e.g., 1000 for kg→g (defaults to 1)</li>
+                  <li>• <strong>cost_per_unit</strong>: Cost per stock unit in decimal format (defaults to 0)</li>
                   <li>• <strong>supplier</strong>: Supplier name (optional)</li>
                 </ul>
               </div>
