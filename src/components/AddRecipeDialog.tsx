@@ -27,6 +27,8 @@ interface InventoryItem {
   id: string;
   name: string;
   unit: string;
+  usage_unit: string | null;
+  usage_per_stock_unit: number | null;
   current_stock: number;
 }
 
@@ -113,12 +115,18 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
     if (field === 'inventory_item_id') {
       const item = availableInventoryItems.find(i => i.id === value);
       if (item) {
-        updated[index] = { ...updated[index], inventory_item_id: value as string, name: item.name, unit: item.unit };
+        // Use usage_unit if defined, otherwise fall back to stock unit
+        const displayUnit = item.usage_unit || item.unit;
+        updated[index] = { ...updated[index], inventory_item_id: value as string, name: item.name, unit: displayUnit };
       }
     } else {
       updated[index] = { ...updated[index], [field]: value };
     }
     setIngredients(updated);
+  };
+
+  const getDisplayUnit = (item: any) => {
+    return item.usage_unit || item.unit;
   };
 
   const removeIngredient = (index: number) => {
@@ -369,7 +377,7 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
                         <SelectContent>
                           {availableInventoryItems.map((item) => (
                             <SelectItem key={item.id} value={item.id}>
-                              {item.name} ({item.unit})
+                              {item.name} ({getDisplayUnit(item)})
                             </SelectItem>
                           ))}
                         </SelectContent>

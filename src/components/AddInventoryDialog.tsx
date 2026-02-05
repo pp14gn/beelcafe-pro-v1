@@ -39,6 +39,8 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
     current_stock: "",
     min_stock: "",
     unit: "",
+    usage_unit: "",
+    usage_per_stock_unit: "1",
     cost_per_unit: "",
     supplier: "",
   });
@@ -146,6 +148,8 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
             current_stock: parseFloat(formData.current_stock),
             min_stock: parseFloat(formData.min_stock),
             unit: formData.unit,
+            usage_unit: formData.usage_unit || null,
+            usage_per_stock_unit: formData.usage_unit ? parseFloat(formData.usage_per_stock_unit) || 1 : 1,
             cost_per_unit: parseFloat(formData.cost_per_unit),
             supplier: formData.supplier,
             photo_url: photoUrl,
@@ -167,6 +171,8 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
         current_stock: "",
         min_stock: "",
         unit: "",
+        usage_unit: "",
+        usage_per_stock_unit: "1",
         cost_per_unit: "",
         supplier: "",
       });
@@ -193,6 +199,8 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
       current_stock: "",
       min_stock: "",
       unit: "",
+      usage_unit: "",
+      usage_per_stock_unit: "1",
       cost_per_unit: "",
       supplier: "",
     });
@@ -271,7 +279,7 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="unit">Unit</Label>
+            <Label htmlFor="unit">Stock Unit (bulk)</Label>
             <Select 
               value={formData.unit} 
               onValueChange={(value) => setFormData(prev => ({ ...prev, unit: value }))}
@@ -288,6 +296,45 @@ const AddInventoryDialog = ({ isOpen, onClose, onSuccess }: AddInventoryDialogPr
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="usage_unit">Usage Unit (recipes)</Label>
+              <Select 
+                value={formData.usage_unit} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, usage_unit: value === "none" ? "" : value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Same as stock unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Same as stock unit</SelectItem>
+                  {units.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.name}>
+                      {unit.name} {unit.abbreviation && `(${unit.abbreviation})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.usage_unit && (
+              <div className="space-y-2">
+                <Label htmlFor="usage_per_stock_unit">
+                  {formData.usage_unit} per {formData.unit || "stock unit"}
+                </Label>
+                <Input
+                  id="usage_per_stock_unit"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={formData.usage_per_stock_unit}
+                  onChange={(e) => setFormData(prev => ({ ...prev, usage_per_stock_unit: e.target.value }))}
+                  placeholder="e.g., 1000 for kg→g"
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

@@ -74,6 +74,11 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
     }
   };
 
+  // Helper to get display unit (usage_unit if set, otherwise stock unit)
+  const getDisplayUnit = (item: any) => {
+    return item?.usage_unit || item?.unit || '';
+  };
+
   useEffect(() => {
     if (recipe) {
       setFormData({
@@ -493,7 +498,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                   <SelectContent>
                     {availableInventoryItems.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
-                        {item.name} ({item.unit})
+                        {item.name} ({getDisplayUnit(item)})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -528,7 +533,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                             <SelectContent>
                               {availableInventoryItems.map((item) => (
                                 <SelectItem key={item.id} value={item.id}>
-                                  {item.name} ({item.unit})
+                                  {item.name} ({getDisplayUnit(item)})
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -563,7 +568,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                               {ingredient.inventory_item?.name || 'Unknown Item'}
                             </span>
                             <Badge variant="secondary" className="ml-2">
-                              {ingredient.quantity} {ingredient.inventory_item?.unit || ''}
+                              {ingredient.quantity} {getDisplayUnit(ingredient.inventory_item)}
                             </Badge>
                           </div>
                           <Button 
@@ -621,7 +626,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                   <SelectContent>
                     {availableInventoryItems.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
-                        {item.name} (${item.cost_per_unit.toFixed(2)}/{item.unit})
+                        {item.name} (${item.cost_per_unit.toFixed(2)}/{getDisplayUnit(item)})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -655,7 +660,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                           <SelectContent>
                             {availableInventoryItems.map((item) => (
                               <SelectItem key={item.id} value={item.id}>
-                                {item.name} (${item.cost_per_unit.toFixed(2)}/{item.unit})
+                                {item.name} (${item.cost_per_unit.toFixed(2)}/{getDisplayUnit(item)})
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -688,7 +693,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                             {modifier.inventory_item?.name || 'Unknown Item'}
                           </span>
                           <Badge variant="secondary" className="ml-2">
-                            {modifier.quantity} {modifier.inventory_item?.unit || ''}
+                            {modifier.quantity} {getDisplayUnit(modifier.inventory_item)}
                           </Badge>
                           <Badge variant="outline" className="ml-1">
                             ${((modifier.inventory_item?.cost_per_unit || 0) * modifier.quantity).toFixed(2)}

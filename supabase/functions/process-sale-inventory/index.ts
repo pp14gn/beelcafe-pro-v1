@@ -21,7 +21,7 @@ serve(async (req) => {
 
     // Process each item in the sale
     for (const item of items) {
-      // Get recipe ingredients
+      // Get recipe ingredients with inventory item details including unit conversion
       const { data: recipeIngredients, error: ingredientsError } = await supabase
         .from('recipe_ingredients')
         .select(`
@@ -29,7 +29,8 @@ serve(async (req) => {
           inventory_item_id,
           inventory_items (
             current_stock,
-            name
+            name,
+            usage_per_stock_unit
           )
         `)
         .eq('recipe_id', item.id)
@@ -41,9 +42,15 @@ serve(async (req) => {
 
       // Deduct inventory for each recipe ingredient
       for (const ingredient of recipeIngredients || []) {
-        const totalUsed = Number(ingredient.quantity) * item.quantity
+        // Recipe quantities are in usage units, need to convert to stock units
+        const usagePerStock = Number(ingredient.inventory_items?.usage_per_stock_unit || 1)
+        const recipeQtyInUsageUnits = Number(ingredient.quantity) * item.quantity
+        
+        // Convert usage units to stock units (e.g., 20g recipe * 2 items = 40g → 0.04kg if 1000 g/kg)
+        const totalUsedInStockUnits = recipeQtyInUsageUnits / usagePerStock
+        
         const currentStock = Number(ingredient.inventory_items?.current_stock || 0)
-        const newStock = Math.max(0, currentStock - totalUsed)
+        const newStock = Math.max(0, currentStock - totalUsedInStockUnits)
 
         const { error: updateError } = await supabase
           .from('inventory_items')
@@ -53,19 +60,17 @@ serve(async (req) => {
         if (updateError) {
           console.error('Error updating inventory:', updateError)
         } else {
-          console.log(`Updated ${ingredient.inventory_items?.name}: ${currentStock} -> ${newStock}`)
+          console.log(`Updated ${ingredient.inventory_items?.name}: ${currentStock} -> ${newStock} (used ${recipeQtyInUsageUnits} usage units = ${totalUsedInStockUnits} stock units)`)
         }
       }
 
       // Process modifiers if they exist
       if (item.selectedModifiers) {
         for (const modifier of item.selectedModifiers) {
-          const modifierQuantity = Number(modifier.quantity) * item.quantity
-          
-          // Get current stock for this modifier inventory item
+          // Get current stock and conversion factor for this modifier inventory item
           const { data: inventoryItem, error: inventoryError } = await supabase
             .from('inventory_items')
-            .select('current_stock, name')
+            .select('current_stock, name, usage_per_stock_unit')
             .eq('id', modifier.inventory_item.id)
             .single()
 
@@ -74,8 +79,13 @@ serve(async (req) => {
             continue
           }
 
+          // Convert modifier quantity from usage units to stock units
+          const usagePerStock = Number(inventoryItem.usage_per_stock_unit || 1)
+          const modifierQtyInUsageUnits = Number(modifier.quantity) * item.quantity
+          const modifierQtyInStockUnits = modifierQtyInUsageUnits / usagePerStock
+          
           const currentStock = Number(inventoryItem.current_stock || 0)
-          const newStock = Math.max(0, currentStock - modifierQuantity)
+          const newStock = Math.max(0, currentStock - modifierQtyInStockUnits)
 
           const { error: updateError } = await supabase
             .from('inventory_items')
@@ -85,7 +95,7 @@ serve(async (req) => {
           if (updateError) {
             console.error('Error updating modifier inventory:', updateError)
           } else {
-            console.log(`Updated modifier ${inventoryItem.name}: ${currentStock} -> ${newStock}`)
+            console.log(`Updated modifier ${inventoryItem.name}: ${currentStock} -> ${newStock} (used ${modifierQtyInUsageUnits} usage units = ${modifierQtyInStockUnits} stock units)`)
           }
         }
       }

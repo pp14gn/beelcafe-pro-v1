@@ -358,6 +358,8 @@ export type Database = {
           supplier: string | null
           unit: string
           updated_at: string
+          usage_per_stock_unit: number | null
+          usage_unit: string | null
         }
         Insert: {
           category: string
@@ -372,6 +374,8 @@ export type Database = {
           supplier?: string | null
           unit: string
           updated_at?: string
+          usage_per_stock_unit?: number | null
+          usage_unit?: string | null
         }
         Update: {
           category?: string
@@ -386,6 +390,8 @@ export type Database = {
           supplier?: string | null
           unit?: string
           updated_at?: string
+          usage_per_stock_unit?: number | null
+          usage_unit?: string | null
         }
         Relationships: []
       }
