@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -149,17 +149,18 @@ Deno.serve(async (req) => {
       authUserId = authData.user.id
     }
 
-    // Create the user profile using service role (bypasses RLS)
+    // Create/update the user profile using service role (bypasses RLS)
+    // Using upsert because the handle_new_user trigger may have already created a profile
     const { error: profileInsertError } = await adminClient
       .from('users')
-      .insert({
+      .upsert({
         id: authUserId,
         username,
         full_name,
         role,
         is_active: true,
         picture_url: picture_url || null,
-      })
+      }, { onConflict: 'id' })
 
     if (profileInsertError) {
       console.error('Profile error:', profileInsertError)
