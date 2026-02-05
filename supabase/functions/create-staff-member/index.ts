@@ -126,6 +126,11 @@ Deno.serve(async (req) => {
         email,
         password,
         email_confirm: true,
+        user_metadata: {
+          username,
+          full_name,
+          role
+        }
       })
 
       if (authError) {
