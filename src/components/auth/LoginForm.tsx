@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
 import { supabase } from '@/integrations/supabase/client';
 import beelcafeLogo from '@/assets/beelcafe-logo.png';
+import ForgotPasswordDialog from './ForgotPasswordDialog';
 
 const LoginForm = () => {
   const [emailOrUsername, setEmailOrUsername] = useState('');
@@ -17,6 +18,7 @@ const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { signIn, user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -232,6 +234,16 @@ const LoginForm = () => {
                 </Button>
               </div>
             </div>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="link"
+                className="px-0 text-sm text-muted-foreground hover:text-foreground"
+                onClick={() => setShowForgotPassword(true)}
+              >
+                Forgot password?
+              </Button>
+            </div>
             <Button
               type="submit"
               className="w-full bg-gradient-coffee hover:opacity-90"
@@ -247,6 +259,11 @@ const LoginForm = () => {
               )}
             </Button>
           </form>
+          
+          <ForgotPasswordDialog 
+            isOpen={showForgotPassword} 
+            onClose={() => setShowForgotPassword(false)} 
+          />
         </CardContent>
       </Card>
     </div>
