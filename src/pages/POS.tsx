@@ -61,6 +61,7 @@ interface MenuItem {
   price: number;
   category: string;
   has_sizes?: boolean;
+  photo_url?: string | null;
   promotion?: Promotion;
   modifiers?: {
     id: string;
@@ -200,6 +201,7 @@ const POS = () => {
           category,
           is_active,
           has_sizes,
+          photo_url,
           recipe_modifiers (
             id,
             quantity,
@@ -230,6 +232,7 @@ const POS = () => {
         price: Number(recipe.base_price),
         category: recipe.category,
         has_sizes: recipe.has_sizes || false,
+        photo_url: recipe.photo_url || null,
         modifiers: recipe.recipe_modifiers
           ?.filter(modifier => modifier.is_active && modifier.inventory_item)
           ?.map(modifier => ({
@@ -1011,8 +1014,12 @@ const POS = () => {
                           </Badge>
                         )}
                         <div className="text-center">
-                          <div className="h-16 w-16 lg:h-20 lg:w-20 mx-auto mb-2 lg:mb-3 rounded-full bg-gradient-cream flex items-center justify-center">
-                            <Coffee className="h-6 w-6 lg:h-8 lg:w-8 text-coffee-bean" />
+                          <div className="h-16 w-16 lg:h-20 lg:w-20 mx-auto mb-2 lg:mb-3 rounded-full bg-gradient-cream flex items-center justify-center overflow-hidden">
+                            {item.photo_url ? (
+                              <img src={item.photo_url} alt={item.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <Coffee className="h-6 w-6 lg:h-8 lg:w-8 text-coffee-bean" />
+                            )}
                           </div>
                           <h3 className="font-semibold text-foreground mb-1 text-sm lg:text-base">{item.name}</h3>
                           {discountedPrice !== null ? (
