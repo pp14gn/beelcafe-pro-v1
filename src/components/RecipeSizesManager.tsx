@@ -6,6 +6,13 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Trash2, Edit3, Ruler, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +25,7 @@ interface RecipeSize {
   sort_order: number;
   is_default: boolean;
   is_active: boolean;
+  inventory_item_id?: string | null;
 }
 
 interface RecipeSizesManagerProps {
@@ -33,15 +41,35 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
     name: "",
     price_adjustment: "0",
     ingredient_multiplier: "1",
+    inventory_item_id: "",
   });
   const [loading, setLoading] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    loadInventoryItems();
+  }, []);
 
   useEffect(() => {
     if (recipeId && hasSizes) {
       loadSizes();
     }
   }, [recipeId, hasSizes]);
+
+  const loadInventoryItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('id, name, unit, category')
+        .order('name');
+
+      if (error) throw error;
+      setInventoryItems(data || []);
+    } catch (error) {
+      console.error('Error loading inventory items:', error);
+    }
+  };
 
   const loadSizes = async () => {
     try {
@@ -72,6 +100,7 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
           ingredient_multiplier: parseFloat(newSize.ingredient_multiplier) || 1,
           sort_order: sizes.length,
           is_default: sizes.length === 0,
+          inventory_item_id: newSize.inventory_item_id || null,
         })
         .select()
         .single();
@@ -79,7 +108,7 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
       if (error) throw error;
 
       setSizes([...sizes, data]);
-      setNewSize({ name: "", price_adjustment: "0", ingredient_multiplier: "1" });
+      setNewSize({ name: "", price_adjustment: "0", ingredient_multiplier: "1", inventory_item_id: "" });
 
       toast({
         title: "Success",
@@ -109,12 +138,12 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
           price_adjustment: editingSize.price_adjustment,
           ingredient_multiplier: editingSize.ingredient_multiplier,
           is_default: editingSize.is_default,
+          inventory_item_id: editingSize.inventory_item_id || null,
         })
         .eq('id', editingSize.id);
 
       if (error) throw error;
 
-      // If setting as default, unset others
       if (editingSize.is_default) {
         await supabase
           .from('recipe_sizes')
@@ -169,13 +198,11 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
 
   const setAsDefault = async (sizeId: string) => {
     try {
-      // First, unset all defaults for this recipe
       await supabase
         .from('recipe_sizes')
         .update({ is_default: false })
         .eq('recipe_id', recipeId);
 
-      // Then set the new default
       await supabase
         .from('recipe_sizes')
         .update({ is_default: true })
@@ -196,7 +223,6 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
     onHasSizesChange(enabled);
     
     if (enabled && sizes.length === 0) {
-      // Add default sizes when enabling
       try {
         const defaultSizes = [
           { name: 'Small', price_adjustment: -0.50, ingredient_multiplier: 0.75, sort_order: 0, is_default: false },
@@ -218,6 +244,12 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
         console.error('Error creating default sizes:', error);
       }
     }
+  };
+
+  const getInventoryItemName = (id: string | null | undefined) => {
+    if (!id) return null;
+    const item = inventoryItems.find(i => i.id === id);
+    return item ? `${item.name} (${item.unit})` : null;
   };
 
   return (
@@ -244,79 +276,120 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
       {hasSizes && (
         <CardContent className="space-y-4">
           {/* Add new size */}
-          <div className="flex gap-2 items-end">
-            <div className="flex-1 space-y-1">
-              <Label className="text-xs">Size Name</Label>
-              <Input
-                placeholder="e.g., Large"
-                value={newSize.name}
-                onChange={(e) => setNewSize(prev => ({ ...prev, name: e.target.value }))}
-              />
+          <div className="space-y-3">
+            <div className="flex gap-2 items-end">
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs">Size Name</Label>
+                <Input
+                  placeholder="e.g., Large"
+                  value={newSize.name}
+                  onChange={(e) => setNewSize(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div className="w-24 space-y-1">
+                <Label className="text-xs">Price +/-</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={newSize.price_adjustment}
+                  onChange={(e) => setNewSize(prev => ({ ...prev, price_adjustment: e.target.value }))}
+                />
+              </div>
+              <div className="w-24 space-y-1">
+                <Label className="text-xs">Multiplier</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  placeholder="1.0"
+                  value={newSize.ingredient_multiplier}
+                  onChange={(e) => setNewSize(prev => ({ ...prev, ingredient_multiplier: e.target.value }))}
+                />
+              </div>
+              <Button type="button" onClick={addSize} size="sm" disabled={loading}>
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
-            <div className="w-24 space-y-1">
-              <Label className="text-xs">Price +/-</Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={newSize.price_adjustment}
-                onChange={(e) => setNewSize(prev => ({ ...prev, price_adjustment: e.target.value }))}
-              />
+            <div className="space-y-1">
+              <Label className="text-xs">Cup / Container (from inventory)</Label>
+              <Select
+                value={newSize.inventory_item_id}
+                onValueChange={(value) => setNewSize(prev => ({ ...prev, inventory_item_id: value === "none" ? "" : value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select cup/container (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {inventoryItems.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name} ({item.unit})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="w-24 space-y-1">
-              <Label className="text-xs">Multiplier</Label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0.1"
-                placeholder="1.0"
-                value={newSize.ingredient_multiplier}
-                onChange={(e) => setNewSize(prev => ({ ...prev, ingredient_multiplier: e.target.value }))}
-              />
-            </div>
-            <Button type="button" onClick={addSize} size="sm" disabled={loading}>
-              <Plus className="h-4 w-4" />
-            </Button>
           </div>
 
           {/* Existing sizes */}
-          <ScrollArea className="max-h-[200px]">
+          <ScrollArea className="max-h-[250px]">
             <div className="space-y-2">
               {sizes.map((size) => (
-                <div key={size.id} className="flex items-center gap-2 p-2 border rounded">
+                <div key={size.id} className="flex flex-col gap-2 p-2 border rounded">
                   {editingSize?.id === size.id ? (
-                    <>
-                      <Input
-                        value={editingSize.name}
-                        onChange={(e) => setEditingSize(prev => prev ? { ...prev, name: e.target.value } : null)}
-                        className="flex-1"
-                      />
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={editingSize.price_adjustment}
-                        onChange={(e) => setEditingSize(prev => prev ? { ...prev, price_adjustment: parseFloat(e.target.value) || 0 } : null)}
-                        className="w-20"
-                      />
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0.1"
-                        value={editingSize.ingredient_multiplier}
-                        onChange={(e) => setEditingSize(prev => prev ? { ...prev, ingredient_multiplier: parseFloat(e.target.value) || 1 } : null)}
-                        className="w-20"
-                      />
-                      <Button type="button" size="sm" onClick={updateSize} disabled={loading}>
-                        Save
-                      </Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setEditingSize(null)}>
-                        Cancel
-                      </Button>
-                    </>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editingSize.name}
+                          onChange={(e) => setEditingSize(prev => prev ? { ...prev, name: e.target.value } : null)}
+                          className="flex-1"
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={editingSize.price_adjustment}
+                          onChange={(e) => setEditingSize(prev => prev ? { ...prev, price_adjustment: parseFloat(e.target.value) || 0 } : null)}
+                          className="w-20"
+                        />
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          value={editingSize.ingredient_multiplier}
+                          onChange={(e) => setEditingSize(prev => prev ? { ...prev, ingredient_multiplier: parseFloat(e.target.value) || 1 } : null)}
+                          className="w-20"
+                        />
+                      </div>
+                      <Select
+                        value={editingSize.inventory_item_id || "none"}
+                        onValueChange={(value) => setEditingSize(prev => prev ? { ...prev, inventory_item_id: value === "none" ? null : value } : null)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select cup/container" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {inventoryItems.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name} ({item.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex gap-2 justify-end">
+                        <Button type="button" size="sm" onClick={updateSize} disabled={loading}>
+                          Save
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => setEditingSize(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
-                    <>
+                    <div className="flex items-center gap-2">
                       <GripVertical className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex-1 flex items-center gap-2">
+                      <div className="flex-1 flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{size.name}</span>
                         {size.is_default && (
                           <Badge variant="default" className="text-xs">Default</Badge>
@@ -327,6 +400,11 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
                         <Badge variant="outline" className="text-xs">
                           x{size.ingredient_multiplier.toFixed(1)}
                         </Badge>
+                        {size.inventory_item_id && (
+                          <Badge variant="secondary" className="text-xs">
+                            🥤 {getInventoryItemName(size.inventory_item_id)}
+                          </Badge>
+                        )}
                       </div>
                       {!size.is_default && (
                         <Button
@@ -355,7 +433,7 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </>
+                    </div>
                   )}
                 </div>
               ))}

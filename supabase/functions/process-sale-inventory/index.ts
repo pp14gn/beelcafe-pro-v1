@@ -40,13 +40,13 @@ serve(async (req) => {
         continue
       }
 
-      // Deduct inventory for each recipe ingredient
+      // Get ingredient multiplier from selected size
+      const sizeMultiplier = item.selectedSize?.ingredient_multiplier || 1
+
+      // Apply size multiplier to ingredient deductions
       for (const ingredient of recipeIngredients || []) {
-        // Recipe quantities are in usage units, need to convert to stock units
         const usagePerStock = Number(ingredient.inventory_items?.usage_per_stock_unit || 1)
-        const recipeQtyInUsageUnits = Number(ingredient.quantity) * item.quantity
-        
-        // Convert usage units to stock units (e.g., 20g recipe * 2 items = 40g → 0.04kg if 1000 g/kg)
+        const recipeQtyInUsageUnits = Number(ingredient.quantity) * item.quantity * sizeMultiplier
         const totalUsedInStockUnits = recipeQtyInUsageUnits / usagePerStock
         
         const currentStock = Number(ingredient.inventory_items?.current_stock || 0)
@@ -60,14 +60,48 @@ serve(async (req) => {
         if (updateError) {
           console.error('Error updating inventory:', updateError)
         } else {
-          console.log(`Updated ${ingredient.inventory_items?.name}: ${currentStock} -> ${newStock} (used ${recipeQtyInUsageUnits} usage units = ${totalUsedInStockUnits} stock units)`)
+          console.log(`Updated ${ingredient.inventory_items?.name}: ${currentStock} -> ${newStock} (used ${recipeQtyInUsageUnits} usage units, multiplier ${sizeMultiplier})`)
+        }
+      }
+
+      // Deduct cup/container from inventory if size has an inventory_item_id
+      if (item.selectedSize?.id) {
+        const { data: sizeData, error: sizeError } = await supabase
+          .from('recipe_sizes')
+          .select('inventory_item_id')
+          .eq('id', item.selectedSize.id)
+          .single()
+
+        if (!sizeError && sizeData?.inventory_item_id) {
+          const { data: cupItem, error: cupError } = await supabase
+            .from('inventory_items')
+            .select('current_stock, name, usage_per_stock_unit')
+            .eq('id', sizeData.inventory_item_id)
+            .single()
+
+          if (!cupError && cupItem) {
+            const usagePerStock = Number(cupItem.usage_per_stock_unit || 1)
+            const cupQtyInStockUnits = item.quantity / usagePerStock
+            const currentStock = Number(cupItem.current_stock || 0)
+            const newStock = Math.max(0, currentStock - cupQtyInStockUnits)
+
+            const { error: cupUpdateError } = await supabase
+              .from('inventory_items')
+              .update({ current_stock: newStock })
+              .eq('id', sizeData.inventory_item_id)
+
+            if (cupUpdateError) {
+              console.error('Error updating cup inventory:', cupUpdateError)
+            } else {
+              console.log(`Deducted cup ${cupItem.name}: ${currentStock} -> ${newStock} (qty: ${item.quantity})`)
+            }
+          }
         }
       }
 
       // Process modifiers if they exist
       if (item.selectedModifiers) {
         for (const modifier of item.selectedModifiers) {
-          // Get current stock and conversion factor for this modifier inventory item
           const { data: inventoryItem, error: inventoryError } = await supabase
             .from('inventory_items')
             .select('current_stock, name, usage_per_stock_unit')
@@ -79,7 +113,6 @@ serve(async (req) => {
             continue
           }
 
-          // Convert modifier quantity from usage units to stock units
           const usagePerStock = Number(inventoryItem.usage_per_stock_unit || 1)
           const modifierQtyInUsageUnits = Number(modifier.quantity) * item.quantity
           const modifierQtyInStockUnits = modifierQtyInUsageUnits / usagePerStock
@@ -95,7 +128,7 @@ serve(async (req) => {
           if (updateError) {
             console.error('Error updating modifier inventory:', updateError)
           } else {
-            console.log(`Updated modifier ${inventoryItem.name}: ${currentStock} -> ${newStock} (used ${modifierQtyInUsageUnits} usage units = ${modifierQtyInStockUnits} stock units)`)
+            console.log(`Updated modifier ${inventoryItem.name}: ${currentStock} -> ${newStock}`)
           }
         }
       }

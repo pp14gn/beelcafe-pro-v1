@@ -18,10 +18,11 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ChefHat, Plus, Minus, X } from "lucide-react";
+import { Loader2, ChefHat, Plus, Minus, X, Ruler } from "lucide-react";
 import RecipePhotoUpload from "./RecipePhotoUpload";
 
 interface InventoryItem {
@@ -43,6 +44,13 @@ interface RecipeIngredient {
 interface RecipeModifier {
   inventory_item_id: string;
   quantity: number;
+}
+
+interface RecipeSizeInput {
+  name: string;
+  price_adjustment: number;
+  ingredient_multiplier: number;
+  inventory_item_id: string;
 }
 
 interface AddRecipeDialogProps {
@@ -67,6 +75,9 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
   const [modifiers, setModifiers] = useState<RecipeModifier[]>([]);
   const [instructions, setInstructions] = useState<string[]>([""]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [hasSizes, setHasSizes] = useState(false);
+  const [sizes, setSizes] = useState<RecipeSizeInput[]>([]);
+  const [newSize, setNewSize] = useState({ name: "", price_adjustment: "0", ingredient_multiplier: "1", inventory_item_id: "" });
   const [availableInventoryItems, setAvailableInventoryItems] = useState<any[]>([]);
 
   const { toast } = useToast();
@@ -183,6 +194,7 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
             servings: parseInt(formData.servings),
             instructions: instructions.filter(i => i.trim() !== ""),
             photo_url: photoUrl,
+            has_sizes: hasSizes && sizes.length > 0,
           }
         ])
         .select()
@@ -220,6 +232,25 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
         if (modifiersError) throw modifiersError;
       }
 
+      // Insert recipe sizes
+      if (hasSizes && sizes.length > 0) {
+        const { error: sizesError } = await supabase
+          .from('recipe_sizes')
+          .insert(
+            sizes.map((size, index) => ({
+              recipe_id: recipe.id,
+              name: size.name,
+              price_adjustment: size.price_adjustment,
+              ingredient_multiplier: size.ingredient_multiplier,
+              sort_order: index,
+              is_default: index === 0,
+              inventory_item_id: size.inventory_item_id || null,
+            }))
+          );
+
+        if (sizesError) throw sizesError;
+      }
+
       toast({
         title: "Recipe Added",
         description: `${formData.name} has been added successfully.`,
@@ -240,7 +271,7 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
     }
   };
 
-  const resetForm = () => {
+   const resetForm = () => {
     setFormData({
       name: "",
       category: "",
@@ -253,6 +284,9 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
     setModifiers([]);
     setInstructions([""]);
     setPhotoUrl(null);
+    setHasSizes(false);
+    setSizes([]);
+    setNewSize({ name: "", price_adjustment: "0", ingredient_multiplier: "1", inventory_item_id: "" });
   };
 
   const handleClose = () => {
@@ -470,6 +504,130 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
                   </div>
                 ))}
               </div>
+            </Card>
+
+            {/* Sizes */}
+            <Card className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <Ruler className="h-4 w-4" />
+                  Size Options
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="add-has-sizes" className="text-sm text-muted-foreground">
+                    Enable Sizes
+                  </Label>
+                  <Switch
+                    id="add-has-sizes"
+                    checked={hasSizes}
+                    onCheckedChange={setHasSizes}
+                  />
+                </div>
+              </div>
+
+              {hasSizes && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1 space-y-1">
+                        <Label className="text-xs">Size Name</Label>
+                        <Input
+                          placeholder="e.g., Large"
+                          value={newSize.name}
+                          onChange={(e) => setNewSize(prev => ({ ...prev, name: e.target.value }))}
+                        />
+                      </div>
+                      <div className="w-24 space-y-1">
+                        <Label className="text-xs">Price +/-</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={newSize.price_adjustment}
+                          onChange={(e) => setNewSize(prev => ({ ...prev, price_adjustment: e.target.value }))}
+                        />
+                      </div>
+                      <div className="w-24 space-y-1">
+                        <Label className="text-xs">Multiplier</Label>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          value={newSize.ingredient_multiplier}
+                          onChange={(e) => setNewSize(prev => ({ ...prev, ingredient_multiplier: e.target.value }))}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (!newSize.name.trim()) return;
+                          setSizes([...sizes, {
+                            name: newSize.name.trim(),
+                            price_adjustment: parseFloat(newSize.price_adjustment) || 0,
+                            ingredient_multiplier: parseFloat(newSize.ingredient_multiplier) || 1,
+                            inventory_item_id: newSize.inventory_item_id,
+                          }]);
+                          setNewSize({ name: "", price_adjustment: "0", ingredient_multiplier: "1", inventory_item_id: "" });
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Cup / Container (from inventory)</Label>
+                      <Select
+                        value={newSize.inventory_item_id || "none"}
+                        onValueChange={(value) => setNewSize(prev => ({ ...prev, inventory_item_id: value === "none" ? "" : value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select cup/container (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {availableInventoryItems.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name} ({item.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {sizes.length > 0 && (
+                    <div className="space-y-2">
+                      {sizes.map((size, index) => (
+                        <div key={index} className="flex items-center gap-2 p-2 border rounded">
+                          <div className="flex-1 flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{size.name}</span>
+                            {index === 0 && <Badge variant="default" className="text-xs">Default</Badge>}
+                            <Badge variant="secondary" className="text-xs">
+                              {size.price_adjustment >= 0 ? '+' : ''}{size.price_adjustment.toFixed(2)}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              x{size.ingredient_multiplier.toFixed(1)}
+                            </Badge>
+                            {size.inventory_item_id && (
+                              <Badge variant="secondary" className="text-xs">
+                                🥤 {availableInventoryItems.find(i => i.id === size.inventory_item_id)?.name || 'Unknown'}
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSizes(sizes.filter((_, i) => i !== index))}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </Card>
 
             {/* Instructions */}
