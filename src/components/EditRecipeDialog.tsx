@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Plus, Trash2, Edit3, Package } from "lucide-react";
+import RecipePhotoUpload from "./RecipePhotoUpload";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import RecipeSizesManager from "./RecipeSizesManager";
@@ -43,6 +44,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
     servings: "1",
     instructions: "",
     has_sizes: false,
+    photo_url: null as string | null,
   });
   const [modifiers, setModifiers] = useState<any[]>([]);
   const [editingModifier, setEditingModifier] = useState<any>(null);
@@ -92,6 +94,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
           ? recipe.instructions.join('\n') 
           : (recipe.instructions || ""),
         has_sizes: recipe.has_sizes || false,
+        photo_url: recipe.photo_url || null,
       });
       loadRecipeModifiers();
       loadRecipeIngredients();
@@ -349,6 +352,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
           servings: parseInt(formData.servings),
           instructions: instructionsArray,
           has_sizes: formData.has_sizes,
+          photo_url: formData.photo_url,
         })
         .eq("id", recipe.id);
 
@@ -381,6 +385,11 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          <RecipePhotoUpload 
+            photoUrl={formData.photo_url} 
+            onPhotoChange={(url) => setFormData(prev => ({ ...prev, photo_url: url }))} 
+          />
+
           <div className="space-y-2">
             <Label htmlFor="name">Recipe Name</Label>
             <Input

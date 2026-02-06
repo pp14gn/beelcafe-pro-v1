@@ -798,6 +798,7 @@ export type Database = {
           instructions: Json | null
           is_active: boolean
           name: string
+          photo_url: string | null
           prep_time: number | null
           servings: number | null
           updated_at: string
@@ -812,6 +813,7 @@ export type Database = {
           instructions?: Json | null
           is_active?: boolean
           name: string
+          photo_url?: string | null
           prep_time?: number | null
           servings?: number | null
           updated_at?: string
@@ -826,6 +828,7 @@ export type Database = {
           instructions?: Json | null
           is_active?: boolean
           name?: string
+          photo_url?: string | null
           prep_time?: number | null
           servings?: number | null
           updated_at?: string

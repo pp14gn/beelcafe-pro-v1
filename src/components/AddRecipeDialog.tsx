@@ -22,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ChefHat, Plus, Minus, X } from "lucide-react";
+import RecipePhotoUpload from "./RecipePhotoUpload";
 
 interface InventoryItem {
   id: string;
@@ -65,6 +66,7 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
   const [modifiers, setModifiers] = useState<RecipeModifier[]>([]);
   const [instructions, setInstructions] = useState<string[]>([""]);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [availableInventoryItems, setAvailableInventoryItems] = useState<any[]>([]);
 
   const { toast } = useToast();
@@ -180,6 +182,7 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
             prep_time: parseInt(formData.prep_time),
             servings: parseInt(formData.servings),
             instructions: instructions.filter(i => i.trim() !== ""),
+            photo_url: photoUrl,
           }
         ])
         .select()
@@ -249,6 +252,7 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
     setIngredients([]);
     setModifiers([]);
     setInstructions([""]);
+    setPhotoUrl(null);
   };
 
   const handleClose = () => {
@@ -268,6 +272,9 @@ const AddRecipeDialog = ({ isOpen, onClose, onSuccess }: AddRecipeDialogProps) =
 
         <ScrollArea className="max-h-[75vh] pr-4">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Recipe Photo */}
+            <RecipePhotoUpload photoUrl={photoUrl} onPhotoChange={setPhotoUrl} />
+
             {/* Basic Info */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
