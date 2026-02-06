@@ -745,6 +745,7 @@ export type Database = {
           created_at: string
           id: string
           ingredient_multiplier: number
+          inventory_item_id: string | null
           is_active: boolean
           is_default: boolean
           name: string
@@ -757,6 +758,7 @@ export type Database = {
           created_at?: string
           id?: string
           ingredient_multiplier?: number
+          inventory_item_id?: string | null
           is_active?: boolean
           is_default?: boolean
           name: string
@@ -769,6 +771,7 @@ export type Database = {
           created_at?: string
           id?: string
           ingredient_multiplier?: number
+          inventory_item_id?: string | null
           is_active?: boolean
           is_default?: boolean
           name?: string
@@ -778,6 +781,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "recipe_sizes_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "recipe_sizes_recipe_id_fkey"
             columns: ["recipe_id"]
