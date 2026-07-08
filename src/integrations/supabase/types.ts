@@ -521,6 +521,83 @@ export type Database = {
           },
         ]
       }
+      online_orders: {
+        Row: {
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          delivery_address: string | null
+          delivery_notes: string | null
+          fulfilled_at: string | null
+          fulfilled_by: string | null
+          fulfillment_type: string
+          id: string
+          items: Json
+          payment_method: string
+          payment_reference: string | null
+          payment_status: string
+          pickup_time: string | null
+          source: string
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          delivery_address?: string | null
+          delivery_notes?: string | null
+          fulfilled_at?: string | null
+          fulfilled_by?: string | null
+          fulfillment_type: string
+          id?: string
+          items?: Json
+          payment_method: string
+          payment_reference?: string | null
+          payment_status?: string
+          pickup_time?: string | null
+          source?: string
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          delivery_address?: string | null
+          delivery_notes?: string | null
+          fulfilled_at?: string | null
+          fulfilled_by?: string | null
+          fulfillment_type?: string
+          id?: string
+          items?: Json
+          payment_method?: string
+          payment_reference?: string | null
+          payment_status?: string
+          pickup_time?: string | null
+          source?: string
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "online_orders_fulfilled_by_fkey"
+            columns: ["fulfilled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           completion_time: string | null

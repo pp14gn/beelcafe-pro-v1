@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Order Online — Beelcafe</title>
+  <meta name="description" content="Order coffee, food and drinks online for pickup or delivery." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  </style>
+</head>
+<body class="bg-amber-50 text-stone-800 min-h-screen">
+  <header class="bg-stone-900 text-amber-50 p-4 shadow">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <h1 class="text-xl font-bold">Beelcafe — Order Online</h1>
+      <button id="cartBtn" class="relative bg-amber-400 text-stone-900 px-4 py-2 rounded font-semibold">
+        Cart (<span id="cartCount">0</span>)
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto p-4">
+    <div id="statusBanner" class="hidden mb-4 p-4 rounded bg-white shadow"></div>
+
+    <div id="menu" class="grid gap-6">
+      <p class="text-stone-500">Loading menu…</p>
+    </div>
+  </main>
+
+  <!-- Cart drawer -->
+  <div id="cartDrawer" class="fixed inset-0 bg-black/40 hidden z-40" onclick="if(event.target===this)closeCart()">
+    <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl overflow-y-auto p-4">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold">Your Order</h2>
+        <button onclick="closeCart()" class="text-stone-500 text-2xl leading-none">&times;</button>
+      </div>
+      <div id="cartItems" class="space-y-3"></div>
+      <div class="border-t mt-4 pt-4">
+        <div class="flex justify-between font-semibold text-lg">
+          <span>Total</span><span>$<span id="cartTotal">0.00</span></span>
+        </div>
+      </div>
+
+      <form id="checkoutForm" class="mt-6 space-y-3">
+        <input required name="customer_name" placeholder="Your name" class="w-full border rounded px-3 py-2" />
+        <input required name="customer_phone" placeholder="Phone" class="w-full border rounded px-3 py-2" />
+        <input name="customer_email" type="email" placeholder="Email (optional)" class="w-full border rounded px-3 py-2" />
+
+        <div class="flex gap-2">
+          <label class="flex-1 border rounded px-3 py-2 cursor-pointer">
+            <input type="radio" name="fulfillment_type" value="pickup" checked /> Pickup
+          </label>
+          <label class="flex-1 border rounded px-3 py-2 cursor-pointer">
+            <input type="radio" name="fulfillment_type" value="delivery" /> Delivery
+          </label>
+        </div>
+
+        <input name="pickup_time" type="datetime-local" class="w-full border rounded px-3 py-2" id="pickupTime" />
+        <textarea name="delivery_address" placeholder="Delivery address" class="w-full border rounded px-3 py-2 hidden" id="deliveryAddress"></textarea>
+        <textarea name="delivery_notes" placeholder="Notes (allergies, delivery instructions…)" class="w-full border rounded px-3 py-2"></textarea>
+
+        <div class="flex gap-2">
+          <label class="flex-1 border rounded px-3 py-2 cursor-pointer">
+            <input type="radio" name="payment_method" value="counter" checked /> Pay at counter
+          </label>
+          <label class="flex-1 border rounded px-3 py-2 cursor-pointer">
+            <input type="radio" name="payment_method" value="online_card" /> Pay by card now
+          </label>
+        </div>
+
+        <button type="submit" id="submitBtn" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 rounded">
+          Place Order
+        </button>
+      </form>
+    </div>
+  </div>
+
+<script>
+  const SUPABASE_URL = "https://tgzksnuzhscnkjlofcou.supabase.co";
+  const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRnemtzbnV6aHNjbmtqbG9mY291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzODc0NDksImV4cCI6MjA5ODk2MzQ0OX0.XP4N156KqZHDLHXGTp5oRxf8ZQ2FOcxWF1acQhzSbOY";
+  const FN = (name) => `${SUPABASE_URL}/functions/v1/${name}`;
+  const headers = { "Content-Type": "application/json", apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` };
+
+  let menu = { categories: [], recipes: [], sizes: [] };
+  let cart = []; // { recipe_id, size_id, name, size_name, quantity, unit_price }
+
+  async function loadMenu() {
+    const res = await fetch(FN("public-menu"), { headers });
+    menu = await res.json();
+    renderMenu();
+  }
+
+  function sizesForRecipe(rid) { return menu.sizes.filter(s => s.recipe_id === rid); }
+
+  function renderMenu() {
+    const root = document.getElementById("menu");
+    if (!menu.recipes.length) { root.innerHTML = "<p>No items available yet.</p>"; return; }
+    const byCat = {};
+    menu.recipes.forEach(r => { (byCat[r.category_id || "other"] ||= []).push(r); });
+    const catName = (id) => (menu.categories.find(c => c.id === id)?.name) || "Menu";
+    root.innerHTML = Object.entries(byCat).map(([cid, items]) => `
+      <section>
+        <h2 class="text-xl font-bold mb-2 border-b pb-1">${catName(cid)}</h2>
+        <div class="grid sm:grid-cols-2 gap-3">
+          ${items.map(r => renderCard(r)).join("")}
+        </div>
+      </section>
+    `).join("");
+  }
+
+  function renderCard(r) {
+    const sizes = sizesForRecipe(r.id);
+    const sizeSel = sizes.length
+      ? `<select data-size="${r.id}" class="border rounded px-2 py-1 text-sm">
+           ${sizes.map(s => `<option value="${s.id}">${s.name} (+$${Number(s.price_adjustment).toFixed(2)})</option>`).join("")}
+         </select>`
+      : "";
+    return `
+      <div class="bg-white rounded shadow p-3 flex flex-col">
+        ${r.photo_url ? `<img src="${r.photo_url}" class="h-32 w-full object-cover rounded mb-2" />` : ""}
+        <div class="font-semibold">${r.name}</div>
+        <div class="text-sm text-stone-500 flex-1">${r.description ?? ""}</div>
+        <div class="mt-2 flex items-center justify-between gap-2">
+          <div class="font-semibold">$${Number(r.price).toFixed(2)}</div>
+          <div class="flex items-center gap-2">${sizeSel}
+            <button onclick='addToCart(${JSON.stringify(r)})' class="bg-stone-900 text-white text-sm px-3 py-1 rounded">Add</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function addToCart(r) {
+    const sizeSel = document.querySelector(`[data-size="${r.id}"]`);
+    const size_id = sizeSel ? sizeSel.value : null;
+    const size = size_id ? menu.sizes.find(s => s.id === size_id) : null;
+    const unit_price = Number(r.price) + (size ? Number(size.price_adjustment) : 0);
+    const existing = cart.find(i => i.recipe_id === r.id && i.size_id === size_id);
+    if (existing) existing.quantity += 1;
+    else cart.push({ recipe_id: r.id, size_id, name: r.name, size_name: size?.name, quantity: 1, unit_price });
+    updateCart();
+  }
+
+  function updateCart() {
+    document.getElementById("cartCount").textContent = cart.reduce((n, i) => n + i.quantity, 0);
+    const total = cart.reduce((s, i) => s + i.unit_price * i.quantity, 0);
+    document.getElementById("cartTotal").textContent = total.toFixed(2);
+    document.getElementById("cartItems").innerHTML = cart.length
+      ? cart.map((i, idx) => `
+        <div class="flex items-center justify-between border-b pb-2">
+          <div>
+            <div class="font-medium">${i.name}${i.size_name ? ` — ${i.size_name}` : ""}</div>
+            <div class="text-sm text-stone-500">$${i.unit_price.toFixed(2)} × ${i.quantity}</div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button onclick="qty(${idx},-1)" class="px-2 border rounded">-</button>
+            <button onclick="qty(${idx},1)" class="px-2 border rounded">+</button>
+            <button onclick="removeItem(${idx})" class="text-red-600 ml-2">✕</button>
+          </div>
+        </div>`).join("")
+      : `<p class="text-stone-500">Cart is empty.</p>`;
+  }
+  function qty(i, d) { cart[i].quantity += d; if (cart[i].quantity < 1) cart.splice(i, 1); updateCart(); }
+  function removeItem(i) { cart.splice(i, 1); updateCart(); }
+
+  document.getElementById("cartBtn").onclick = () => document.getElementById("cartDrawer").classList.remove("hidden");
+  function closeCart() { document.getElementById("cartDrawer").classList.add("hidden"); }
+
+  document.querySelectorAll('input[name="fulfillment_type"]').forEach(el => {
+    el.addEventListener("change", () => {
+      const isDelivery = document.querySelector('input[name="fulfillment_type"]:checked').value === "delivery";
+      document.getElementById("deliveryAddress").classList.toggle("hidden", !isDelivery);
+      document.getElementById("pickupTime").classList.toggle("hidden", isDelivery);
+    });
+  });
+
+  document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!cart.length) { alert("Cart is empty."); return; }
+    const fd = new FormData(e.target);
+    const payload = {
+      customer_name: fd.get("customer_name"),
+      customer_phone: fd.get("customer_phone"),
+      customer_email: fd.get("customer_email") || undefined,
+      fulfillment_type: fd.get("fulfillment_type"),
+      pickup_time: fd.get("pickup_time") || undefined,
+      delivery_address: fd.get("delivery_address") || undefined,
+      delivery_notes: fd.get("delivery_notes") || undefined,
+      payment_method: fd.get("payment_method"),
+      items: cart.map(i => ({ recipe_id: i.recipe_id, size_id: i.size_id, quantity: i.quantity })),
+      source: location.hostname,
+      return_origin: location.origin,
+    };
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true; btn.textContent = "Placing…";
+    try {
+      const res = await fetch(FN("public-order-intake"), { method: "POST", headers, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Order failed");
+      if (data.checkout_url) { window.location.href = data.checkout_url; return; }
+      cart = []; updateCart(); closeCart();
+      showStatus(data.order_id);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "Place Order";
+    }
+  });
+
+  async function showStatus(orderId) {
+    const banner = document.getElementById("statusBanner");
+    banner.classList.remove("hidden");
+    async function poll() {
+      const r = await fetch(FN(`public-order-status`) + `?id=${orderId}`, { headers });
+      if (!r.ok) return;
+      const o = await r.json();
+      const label = {
+        new: "Received — waiting for the shop to accept",
+        accepted: "Accepted — being prepared soon",
+        preparing: "Being prepared",
+        ready: o.fulfillment_type === "delivery" ? "Out for delivery" : "Ready for pickup!",
+        completed: "Completed. Thanks!",
+        cancelled: "Cancelled",
+      }[o.status] || o.status;
+      banner.innerHTML = `
+        <div class="font-semibold">Order #${orderId.slice(0,8)}</div>
+        <div>Status: <span class="font-medium">${label}</span></div>
+        <div class="text-sm text-stone-500">Payment: ${o.payment_status}</div>`;
+      if (!["completed","cancelled"].includes(o.status)) setTimeout(poll, 5000);
+    }
+    poll();
+  }
+
+  // If we came back from MP with ?order=...
+  const params = new URLSearchParams(location.search);
+  if (params.get("order")) showStatus(params.get("order"));
+
+  loadMenu();
+</script>
+</body>
+</html>
