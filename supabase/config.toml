@@ -1,1 +1,13 @@
 project_id = "tgzksnuzhscnkjlofcou"
+
+[functions.public-menu]
+verify_jwt = false
+
+[functions.public-order-intake]
+verify_jwt = false
+
+[functions.public-order-status]
+verify_jwt = false
+
+[functions.mercadopago-webhook]
+verify_jwt = false
