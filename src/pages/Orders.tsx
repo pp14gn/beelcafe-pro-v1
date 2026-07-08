@@ -3,7 +3,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "@/hooks/useTranslation";
 import { supabase } from "@/integrations/supabase/client";
 import OrderTracker from "@/components/OrderTracker";
-import { Clock } from "lucide-react";
+import OnlineOrdersPanel from "@/components/OnlineOrdersPanel";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Clock, Globe } from "lucide-react";
 
 const Orders = () => {
   const [currentShift, setCurrentShift] = useState<any>(null);
@@ -45,19 +47,28 @@ const Orders = () => {
         </p>
       </div>
 
-      <div className="h-[calc(100vh-80px)]">
-        {currentShift ? (
-          <OrderTracker currentShift={currentShift} />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center text-muted-foreground">
-              <Clock className="h-16 w-16 mx-auto mb-4 opacity-50" />
-              <h2 className="text-lg font-semibold mb-2">{t('pos.no.shift')}</h2>
-              <p>{t('pos.shift.required')}</p>
+      <Tabs defaultValue="in-store" className="h-[calc(100vh-80px)] flex flex-col">
+        <TabsList className="mx-3 mt-2 w-fit">
+          <TabsTrigger value="in-store" className="gap-1"><Clock className="h-3 w-3" /> In-store</TabsTrigger>
+          <TabsTrigger value="online" className="gap-1"><Globe className="h-3 w-3" /> Online</TabsTrigger>
+        </TabsList>
+        <TabsContent value="in-store" className="flex-1 overflow-auto mt-0">
+          {currentShift ? (
+            <OrderTracker currentShift={currentShift} />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-muted-foreground">
+                <Clock className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <h2 className="text-lg font-semibold mb-2">{t('pos.no.shift')}</h2>
+                <p>{t('pos.shift.required')}</p>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </TabsContent>
+        <TabsContent value="online" className="flex-1 overflow-auto mt-0">
+          <OnlineOrdersPanel shiftId={currentShift?.id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
