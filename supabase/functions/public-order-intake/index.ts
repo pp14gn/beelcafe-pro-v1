@@ -61,7 +61,7 @@ serve(async (req) => {
     const sizeIds = [...new Set(body.items.map((i) => i.size_id).filter(Boolean))] as string[];
 
     const [{ data: recipes, error: rErr }, { data: sizes, error: sErr }] = await Promise.all([
-      supabase.from("recipes").select("id, name, price, is_available").in("id", recipeIds),
+      supabase.from("recipes").select("id, name, base_price, is_active").in("id", recipeIds),
       sizeIds.length
         ? supabase.from("recipe_sizes").select("id, recipe_id, name, price_adjustment").in("id", sizeIds)
         : Promise.resolve({ data: [] as any[], error: null }),
@@ -77,12 +77,12 @@ serve(async (req) => {
 
     for (const it of body.items) {
       const r: any = recipeMap.get(it.recipe_id);
-      if (!r || !r.is_available) return bad(`Item unavailable: ${it.recipe_id}`);
+      if (!r || !r.is_active) return bad(`Item unavailable: ${it.recipe_id}`);
       const qty = Number(it.quantity);
       if (!Number.isInteger(qty) || qty < 1 || qty > 50) return bad("Invalid quantity");
 
       let sizeInfo: any = null;
-      let unitPrice = Number(r.price);
+      let unitPrice = Number(r.base_price);
       if (it.size_id) {
         const s: any = sizeMap.get(it.size_id);
         if (!s || s.recipe_id !== r.id) return bad("Invalid size for item");

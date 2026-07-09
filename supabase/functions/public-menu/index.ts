@@ -20,16 +20,31 @@ serve(async (req) => {
       supabase.from("categories").select("id, name").order("name"),
       supabase
         .from("recipes")
-        .select("id, name, description, price, category_id, photo_url, is_available")
-        .eq("is_available", true)
+        .select("id, name, description, base_price, category, photo_url, is_active")
+        .eq("is_active", true)
         .order("name"),
-      supabase.from("recipe_sizes").select("id, recipe_id, name, price_adjustment, ingredient_multiplier"),
+      supabase
+        .from("recipe_sizes")
+        .select("id, recipe_id, name, price_adjustment, ingredient_multiplier, is_active")
+        .eq("is_active", true),
     ]);
+
+    // Map recipes.category (text name) to a category_id for the client, matching by name.
+    const catByName = new Map((categories ?? []).map((c: any) => [c.name, c.id]));
+    const mappedRecipes = (recipes ?? []).map((r: any) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      price: Number(r.base_price ?? 0),
+      category_id: catByName.get(r.category) ?? r.category ?? null,
+      photo_url: r.photo_url,
+      is_available: r.is_active,
+    }));
 
     return new Response(
       JSON.stringify({
         categories: categories ?? [],
-        recipes: recipes ?? [],
+        recipes: mappedRecipes,
         sizes: sizes ?? [],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
