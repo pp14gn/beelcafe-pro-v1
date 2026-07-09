@@ -35,7 +35,8 @@ import {
   AlertCircle,
   Search,
   Coins,
-  Tag
+  Tag,
+  ExternalLink
 } from "lucide-react";
 
 
