@@ -11,6 +11,7 @@ interface CartItem {
   recipe_id: string;
   size_id?: string | null;
   quantity: number;
+  modifier_ids?: string[];
   notes?: string;
 }
 
@@ -59,18 +60,27 @@ serve(async (req) => {
     // Fetch recipes & sizes server-side to re-price
     const recipeIds = [...new Set(body.items.map((i) => i.recipe_id))];
     const sizeIds = [...new Set(body.items.map((i) => i.size_id).filter(Boolean))] as string[];
+    const modifierIds = [...new Set(body.items.flatMap((i) => i.modifier_ids ?? []))];
 
-    const [{ data: recipes, error: rErr }, { data: sizes, error: sErr }] = await Promise.all([
+    const [{ data: recipes, error: rErr }, { data: sizes, error: sErr }, { data: modifiers, error: mErr }] = await Promise.all([
       supabase.from("recipes").select("id, name, base_price, is_active").in("id", recipeIds),
       sizeIds.length
         ? supabase.from("recipe_sizes").select("id, recipe_id, name, price_adjustment").in("id", sizeIds)
         : Promise.resolve({ data: [] as any[], error: null }),
+      modifierIds.length
+        ? supabase
+            .from("recipe_modifiers")
+            .select("id, recipe_id, quantity, is_active, inventory_item:inventory_items(id, name, unit, cost_per_unit)")
+            .in("id", modifierIds)
+        : Promise.resolve({ data: [] as any[], error: null }),
     ]);
     if (rErr) return bad(rErr.message, 500);
     if (sErr) return bad(sErr.message, 500);
+    if (mErr) return bad(mErr.message, 500);
 
     const recipeMap = new Map((recipes ?? []).map((r: any) => [r.id, r]));
     const sizeMap = new Map((sizes ?? []).map((s: any) => [s.id, s]));
+    const modifierMap = new Map((modifiers ?? []).map((m: any) => [m.id, m]));
 
     const pricedItems: any[] = [];
     let subtotal = 0;
@@ -89,6 +99,21 @@ serve(async (req) => {
         unitPrice += Number(s.price_adjustment || 0);
         sizeInfo = { id: s.id, name: s.name, price_adjustment: Number(s.price_adjustment || 0) };
       }
+      const selectedModifiers: any[] = [];
+      for (const mid of it.modifier_ids ?? []) {
+        const m: any = modifierMap.get(mid);
+        if (!m || m.recipe_id !== r.id || !m.is_active) return bad("Invalid modifier for item");
+        const addPrice = Number(m.inventory_item?.cost_per_unit ?? 0) * Number(m.quantity ?? 0);
+        unitPrice += addPrice;
+        selectedModifiers.push({
+          id: m.id,
+          name: m.inventory_item?.name,
+          quantity: Number(m.quantity ?? 0),
+          unit: m.inventory_item?.unit,
+          price: addPrice,
+          inventory_item: m.inventory_item,
+        });
+      }
       const lineTotal = unitPrice * qty;
       subtotal += lineTotal;
       pricedItems.push({
@@ -99,6 +124,7 @@ serve(async (req) => {
         unit_price: unitPrice,
         line_total: lineTotal,
         selectedSize: sizeInfo,
+        selectedModifiers,
         notes: it.notes ?? null,
       });
     }
