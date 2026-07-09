@@ -225,8 +225,12 @@
       delivery_address: fd.get("delivery_address") || undefined,
       delivery_notes: fd.get("delivery_notes") || undefined,
       payment_method: fd.get("payment_method"),
-      items: cart.map(i => ({ recipe_id: i.recipe_id, size_id: i.size_id, quantity: i.quantity })),
-      // include modifiers per line
+      items: cart.map(i => ({
+        recipe_id: i.recipe_id,
+        size_id: i.size_id,
+        quantity: i.quantity,
+        modifier_ids: i.modifier_ids ?? [],
+      })),
       source: location.hostname,
       return_origin: location.origin,
     };
