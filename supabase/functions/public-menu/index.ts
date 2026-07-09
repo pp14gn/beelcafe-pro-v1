@@ -16,7 +16,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const [{ data: categories }, { data: recipes }, { data: sizes }] = await Promise.all([
+    const [{ data: categories }, { data: recipes }, { data: sizes }, { data: modifiers }] = await Promise.all([
       supabase.from("categories").select("id, name").order("name"),
       supabase
         .from("recipes")
@@ -26,6 +26,10 @@ serve(async (req) => {
       supabase
         .from("recipe_sizes")
         .select("id, recipe_id, name, price_adjustment, ingredient_multiplier, is_active")
+        .eq("is_active", true),
+      supabase
+        .from("recipe_modifiers")
+        .select("id, recipe_id, quantity, is_active, inventory_item:inventory_items(id, name, unit, cost_per_unit)")
         .eq("is_active", true),
     ]);
 
@@ -46,6 +50,7 @@ serve(async (req) => {
         categories: categories ?? [],
         recipes: mappedRecipes,
         sizes: sizes ?? [],
+        modifiers: modifiers ?? [],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
