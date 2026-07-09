@@ -82,8 +82,8 @@
   const FN = (name) => `${SUPABASE_URL}/functions/v1/${name}`;
   const headers = { "Content-Type": "application/json", apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` };
 
-  let menu = { categories: [], recipes: [], sizes: [] };
-  let cart = []; // { recipe_id, size_id, name, size_name, quantity, unit_price }
+  let menu = { categories: [], recipes: [], sizes: [], modifiers: [] };
+  let cart = []; // { recipe_id, size_id, modifier_ids, name, size_name, modifier_names, quantity, unit_price }
 
   async function loadMenu() {
     const res = await fetch(FN("public-menu"), { headers });
@@ -92,6 +92,7 @@
   }
 
   function sizesForRecipe(rid) { return menu.sizes.filter(s => s.recipe_id === rid); }
+  function modifiersForRecipe(rid) { return menu.modifiers.filter(m => m.recipe_id === rid); }
 
   function renderMenu() {
     const root = document.getElementById("menu");
@@ -111,16 +112,35 @@
 
   function renderCard(r) {
     const sizes = sizesForRecipe(r.id);
+    const mods = modifiersForRecipe(r.id);
     const sizeSel = sizes.length
       ? `<select data-size="${r.id}" class="border rounded px-2 py-1 text-sm">
            ${sizes.map(s => `<option value="${s.id}">${s.name} (+$${Number(s.price_adjustment).toFixed(2)})</option>`).join("")}
          </select>`
+      : "";
+    const modList = mods.length
+      ? `<details class="mt-2 text-sm">
+           <summary class="cursor-pointer text-stone-600">Add extras</summary>
+           <div class="mt-1 space-y-1">
+             ${mods.map(m => {
+               const addPrice = Number(m.inventory_item?.cost_per_unit || 0) * Number(m.quantity || 0);
+               return `<label class="flex items-center justify-between gap-2">
+                 <span class="flex items-center gap-2">
+                   <input type="checkbox" data-mod="${r.id}" value="${m.id}" />
+                   ${m.inventory_item?.name} x${m.quantity} ${m.inventory_item?.unit ?? ""}
+                 </span>
+                 <span class="text-stone-500">+$${addPrice.toFixed(2)}</span>
+               </label>`;
+             }).join("")}
+           </div>
+         </details>`
       : "";
     return `
       <div class="bg-white rounded shadow p-3 flex flex-col">
         ${r.photo_url ? `<img src="${r.photo_url}" class="h-32 w-full object-cover rounded mb-2" />` : ""}
         <div class="font-semibold">${r.name}</div>
         <div class="text-sm text-stone-500 flex-1">${r.description ?? ""}</div>
+        ${modList}
         <div class="mt-2 flex items-center justify-between gap-2">
           <div class="font-semibold">$${Number(r.price).toFixed(2)}</div>
           <div class="flex items-center gap-2">${sizeSel}
@@ -134,10 +154,27 @@
     const sizeSel = document.querySelector(`[data-size="${r.id}"]`);
     const size_id = sizeSel ? sizeSel.value : null;
     const size = size_id ? menu.sizes.find(s => s.id === size_id) : null;
-    const unit_price = Number(r.price) + (size ? Number(size.price_adjustment) : 0);
-    const existing = cart.find(i => i.recipe_id === r.id && i.size_id === size_id);
+    const modChecks = document.querySelectorAll(`[data-mod="${r.id}"]:checked`);
+    const modifier_ids = Array.from(modChecks).map(c => c.value);
+    const selectedMods = modifier_ids.map(id => menu.modifiers.find(m => m.id === id)).filter(Boolean);
+    const modsPrice = selectedMods.reduce((s, m) =>
+      s + Number(m.inventory_item?.cost_per_unit || 0) * Number(m.quantity || 0), 0);
+    const unit_price = Number(r.price) + (size ? Number(size.price_adjustment) : 0) + modsPrice;
+    const modKey = [...modifier_ids].sort().join(",");
+    const existing = cart.find(i => i.recipe_id === r.id && i.size_id === size_id && (i._modKey || "") === modKey);
     if (existing) existing.quantity += 1;
-    else cart.push({ recipe_id: r.id, size_id, name: r.name, size_name: size?.name, quantity: 1, unit_price });
+    else cart.push({
+      recipe_id: r.id,
+      size_id,
+      modifier_ids,
+      _modKey: modKey,
+      name: r.name,
+      size_name: size?.name,
+      modifier_names: selectedMods.map(m => `${m.inventory_item?.name} x${m.quantity}`),
+      quantity: 1,
+      unit_price,
+    });
+    modChecks.forEach(c => (c.checked = false));
     updateCart();
   }
 
@@ -150,6 +187,7 @@
         <div class="flex items-center justify-between border-b pb-2">
           <div>
             <div class="font-medium">${i.name}${i.size_name ? ` — ${i.size_name}` : ""}</div>
+            ${i.modifier_names?.length ? `<div class="text-xs text-stone-500">+ ${i.modifier_names.join(", ")}</div>` : ""}
             <div class="text-sm text-stone-500">$${i.unit_price.toFixed(2)} × ${i.quantity}</div>
           </div>
           <div class="flex items-center gap-1">
@@ -188,6 +226,7 @@
       delivery_notes: fd.get("delivery_notes") || undefined,
       payment_method: fd.get("payment_method"),
       items: cart.map(i => ({ recipe_id: i.recipe_id, size_id: i.size_id, quantity: i.quantity })),
+      // include modifiers per line
       source: location.hostname,
       return_origin: location.origin,
     };
