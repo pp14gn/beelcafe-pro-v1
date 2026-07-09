@@ -35,7 +35,8 @@ import {
   AlertCircle,
   Search,
   Coins,
-  Tag
+  Tag,
+  ExternalLink
 } from "lucide-react";
 
 
@@ -909,6 +910,14 @@ const POS = () => {
                   loadCurrentCashTotal();
                 }}
               />
+              <Button
+                variant="outline"
+                onClick={() => window.open("/order.html", "_blank", "noopener,noreferrer")}
+                className="gap-2 border-coffee-gold/30 hover:bg-coffee-gold/10 w-full lg:w-auto"
+              >
+                <ExternalLink className="h-4 w-4" />
+                <span className="hidden lg:inline">Online Order Form</span>
+              </Button>
               <div className="text-center lg:text-right">
                 <p className="text-sm text-muted-foreground">Today's Cash</p>
                 <p className="text-lg font-bold text-coffee-gold">${currentCashTotal.toFixed(2)}</p>
