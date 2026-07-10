@@ -65,7 +65,11 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
         .order('name');
 
       if (error) throw error;
-      setInventoryItems(data || []);
+      const filtered = (data || []).filter((item: any) => {
+        const cat = (item.category || '').toString().toLowerCase().trim();
+        return cat === 'cup/container' || cat === 'cup' || cat === 'container' || cat === 'cups/containers';
+      });
+      setInventoryItems(filtered);
     } catch (error) {
       console.error('Error loading inventory items:', error);
     }
