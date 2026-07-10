@@ -71,7 +71,24 @@ const RealtimeClock = ({ currentShift, onShiftAutoClose }: RealtimeClockProps) =
     }
 
     // Auto-close shift 15 minutes after closing
-    if (now >= autoCloseTime && !hasAutoClosedShift && currentShift?.status === 'active') {
+    // Only fire within a 30-minute window after autoCloseTime, and only if the
+    // shift actually started before today's closing time. This prevents the
+    // component from auto-closing a freshly opened shift whenever the POS page
+    // is remounted (e.g. tab/route changes) at a time that happens to be past
+    // the store's closing hour.
+    const autoCloseWindowEnd = new Date(autoCloseTime);
+    autoCloseWindowEnd.setMinutes(autoCloseWindowEnd.getMinutes() + 30);
+
+    const shiftStart = currentShift?.start_time ? new Date(currentShift.start_time) : null;
+    const shiftStartedBeforeClose = shiftStart ? shiftStart < closingTime : false;
+
+    if (
+      now >= autoCloseTime &&
+      now < autoCloseWindowEnd &&
+      !hasAutoClosedShift &&
+      currentShift?.status === 'active' &&
+      shiftStartedBeforeClose
+    ) {
       setHasAutoClosedShift(true);
       handleAutoCloseShift();
     }
