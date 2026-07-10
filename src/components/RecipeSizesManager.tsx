@@ -223,6 +223,30 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
     }
   };
 
+  const updateSizeInventoryItem = async (sizeId: string, inventoryItemId: string | null) => {
+    // Optimistic update
+    setSizes(prev => prev.map(s => s.id === sizeId ? { ...s, inventory_item_id: inventoryItemId } : s));
+    try {
+      const { error } = await supabase
+        .from('recipe_sizes')
+        .update({ inventory_item_id: inventoryItemId })
+        .eq('id', sizeId);
+      if (error) throw error;
+      toast({
+        title: "Saved",
+        description: inventoryItemId ? "Cup/container linked to size." : "Cup/container removed from size.",
+      });
+    } catch (error) {
+      console.error('Error updating size cup/container:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update cup/container.",
+      });
+      await loadSizes();
+    }
+  };
+
   const handleToggleSizes = async (enabled: boolean) => {
     onHasSizesChange(enabled);
     
