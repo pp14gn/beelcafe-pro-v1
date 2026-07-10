@@ -415,6 +415,7 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
                       </div>
                     </div>
                   ) : (
+                    <>
                     <div className="flex items-center gap-2">
                       <GripVertical className="h-4 w-4 text-muted-foreground" />
                       <div className="flex-1 flex items-center gap-2 flex-wrap">
@@ -462,6 +463,26 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
+                    <div className="flex items-center gap-2 pl-6">
+                      <Label className="text-xs whitespace-nowrap text-muted-foreground">Cup/Container:</Label>
+                      <Select
+                        value={size.inventory_item_id || "none"}
+                        onValueChange={(value) => updateSizeInventoryItem(size.id, value === "none" ? null : value)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="None" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {inventoryItems.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name} ({item.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    </>
                   )}
                 </div>
               ))}
