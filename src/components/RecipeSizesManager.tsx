@@ -580,6 +580,84 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="pl-6">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setExpandedSizes(prev => ({ ...prev, [size.id]: !prev[size.id] }))}
+                      >
+                        {expandedSizes[size.id] ? (
+                          <ChevronDown className="h-3 w-3 mr-1" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3 mr-1" />
+                        )}
+                        Ingredients ({recipeIngredients.length})
+                      </Button>
+                      {expandedSizes[size.id] && (
+                        <div className="mt-2 space-y-2 border-l-2 border-muted pl-3">
+                          {recipeIngredients.length === 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              No ingredients on this recipe yet. Add ingredients first.
+                            </p>
+                          )}
+                          {recipeIngredients.map((ing) => {
+                            const hasOverride =
+                              sizeIngredientOverrides[size.id]?.[ing.inventory_item_id] !== undefined;
+                            const effective = getEffectiveQuantity(size, ing);
+                            const unit = ing.inventory_items?.unit || '';
+                            const name = ing.inventory_items?.name || 'Ingredient';
+                            return (
+                              <div key={ing.id} className="flex items-center gap-2">
+                                <span className="flex-1 text-xs truncate">{name}</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={effective}
+                                  onChange={(e) => {
+                                    const v = parseFloat(e.target.value);
+                                    setSizeIngredientOverrides(prev => ({
+                                      ...prev,
+                                      [size.id]: {
+                                        ...(prev[size.id] || {}),
+                                        [ing.inventory_item_id]: isNaN(v) ? 0 : v,
+                                      },
+                                    }));
+                                  }}
+                                  onBlur={(e) => {
+                                    const v = parseFloat(e.target.value);
+                                    setSizeIngredientQuantity(
+                                      size.id,
+                                      ing.inventory_item_id,
+                                      isNaN(v) ? 0 : v
+                                    );
+                                  }}
+                                  className="h-7 w-24 text-xs"
+                                />
+                                <span className="text-xs text-muted-foreground w-10">{unit}</span>
+                                {hasOverride && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => resetSizeIngredientOverride(size.id, ing.inventory_item_id)}
+                                    title="Reset to multiplier default"
+                                  >
+                                    Reset
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          })}
+                          <p className="text-[10px] text-muted-foreground">
+                            Default = base quantity × multiplier ({size.ingredient_multiplier}). Edit to override per size.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                     </>
                   )}
                 </div>
