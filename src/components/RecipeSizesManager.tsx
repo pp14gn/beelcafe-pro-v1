@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Edit3, Ruler, GripVertical } from "lucide-react";
+import { Plus, Trash2, Edit3, Ruler, GripVertical, ChevronDown, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -45,6 +45,9 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
   });
   const [loading, setLoading] = useState(false);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [recipeIngredients, setRecipeIngredients] = useState<any[]>([]);
+  const [sizeIngredientOverrides, setSizeIngredientOverrides] = useState<Record<string, Record<string, number>>>({});
+  const [expandedSizes, setExpandedSizes] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -54,6 +57,8 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
   useEffect(() => {
     if (recipeId && hasSizes) {
       loadSizes();
+      loadRecipeIngredients();
+      loadSizeIngredientOverrides();
     }
   }, [recipeId, hasSizes]);
 
@@ -72,6 +77,98 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
       setInventoryItems(filtered);
     } catch (error) {
       console.error('Error loading inventory items:', error);
+    }
+  };
+
+  const loadRecipeIngredients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('recipe_ingredients')
+        .select('id, quantity, inventory_item_id, inventory_items ( id, name, unit )')
+        .eq('recipe_id', recipeId);
+      if (error) throw error;
+      setRecipeIngredients(data || []);
+    } catch (error) {
+      console.error('Error loading recipe ingredients:', error);
+    }
+  };
+
+  const loadSizeIngredientOverrides = async () => {
+    try {
+      const { data: sizesData } = await supabase
+        .from('recipe_sizes')
+        .select('id')
+        .eq('recipe_id', recipeId);
+      const sizeIds = (sizesData || []).map((s: any) => s.id);
+      if (sizeIds.length === 0) {
+        setSizeIngredientOverrides({});
+        return;
+      }
+      const { data, error } = await (supabase as any)
+        .from('recipe_size_ingredients')
+        .select('recipe_size_id, inventory_item_id, quantity')
+        .in('recipe_size_id', sizeIds);
+      if (error) throw error;
+      const map: Record<string, Record<string, number>> = {};
+      for (const row of data || []) {
+        if (!map[row.recipe_size_id]) map[row.recipe_size_id] = {};
+        map[row.recipe_size_id][row.inventory_item_id] = Number(row.quantity);
+      }
+      setSizeIngredientOverrides(map);
+    } catch (error) {
+      console.error('Error loading size ingredient overrides:', error);
+    }
+  };
+
+  const getEffectiveQuantity = (size: RecipeSize, ingredient: any): number => {
+    const override = sizeIngredientOverrides[size.id]?.[ingredient.inventory_item_id];
+    if (override !== undefined) return override;
+    return Number(ingredient.quantity) * Number(size.ingredient_multiplier || 1);
+  };
+
+  const setSizeIngredientQuantity = async (sizeId: string, inventoryItemId: string, quantity: number) => {
+    setSizeIngredientOverrides(prev => ({
+      ...prev,
+      [sizeId]: { ...(prev[sizeId] || {}), [inventoryItemId]: quantity },
+    }));
+    try {
+      const { error } = await (supabase as any)
+        .from('recipe_size_ingredients')
+        .upsert(
+          { recipe_size_id: sizeId, inventory_item_id: inventoryItemId, quantity },
+          { onConflict: 'recipe_size_id,inventory_item_id' }
+        );
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving size ingredient override:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to save ingredient quantity for this size.',
+      });
+      await loadSizeIngredientOverrides();
+    }
+  };
+
+  const resetSizeIngredientOverride = async (sizeId: string, inventoryItemId: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('recipe_size_ingredients')
+        .delete()
+        .eq('recipe_size_id', sizeId)
+        .eq('inventory_item_id', inventoryItemId);
+      if (error) throw error;
+      setSizeIngredientOverrides(prev => {
+        const next = { ...prev };
+        if (next[sizeId]) {
+          const inner = { ...next[sizeId] };
+          delete inner[inventoryItemId];
+          next[sizeId] = inner;
+        }
+        return next;
+      });
+    } catch (error) {
+      console.error('Error resetting override:', error);
     }
   };
 
@@ -268,6 +365,7 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
         }
 
         await loadSizes();
+        await loadRecipeIngredients();
       } catch (error) {
         console.error('Error creating default sizes:', error);
       }
@@ -481,6 +579,84 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="pl-6">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setExpandedSizes(prev => ({ ...prev, [size.id]: !prev[size.id] }))}
+                      >
+                        {expandedSizes[size.id] ? (
+                          <ChevronDown className="h-3 w-3 mr-1" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3 mr-1" />
+                        )}
+                        Ingredients ({recipeIngredients.length})
+                      </Button>
+                      {expandedSizes[size.id] && (
+                        <div className="mt-2 space-y-2 border-l-2 border-muted pl-3">
+                          {recipeIngredients.length === 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              No ingredients on this recipe yet. Add ingredients first.
+                            </p>
+                          )}
+                          {recipeIngredients.map((ing) => {
+                            const hasOverride =
+                              sizeIngredientOverrides[size.id]?.[ing.inventory_item_id] !== undefined;
+                            const effective = getEffectiveQuantity(size, ing);
+                            const unit = ing.inventory_items?.unit || '';
+                            const name = ing.inventory_items?.name || 'Ingredient';
+                            return (
+                              <div key={ing.id} className="flex items-center gap-2">
+                                <span className="flex-1 text-xs truncate">{name}</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={effective}
+                                  onChange={(e) => {
+                                    const v = parseFloat(e.target.value);
+                                    setSizeIngredientOverrides(prev => ({
+                                      ...prev,
+                                      [size.id]: {
+                                        ...(prev[size.id] || {}),
+                                        [ing.inventory_item_id]: isNaN(v) ? 0 : v,
+                                      },
+                                    }));
+                                  }}
+                                  onBlur={(e) => {
+                                    const v = parseFloat(e.target.value);
+                                    setSizeIngredientQuantity(
+                                      size.id,
+                                      ing.inventory_item_id,
+                                      isNaN(v) ? 0 : v
+                                    );
+                                  }}
+                                  className="h-7 w-24 text-xs"
+                                />
+                                <span className="text-xs text-muted-foreground w-10">{unit}</span>
+                                {hasOverride && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => resetSizeIngredientOverride(size.id, ing.inventory_item_id)}
+                                    title="Reset to multiplier default"
+                                  >
+                                    Reset
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          })}
+                          <p className="text-[10px] text-muted-foreground">
+                            Default = base quantity × multiplier ({size.ingredient_multiplier}). Edit to override per size.
+                          </p>
+                        </div>
+                      )}
                     </div>
                     </>
                   )}

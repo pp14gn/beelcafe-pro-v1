@@ -43,10 +43,29 @@ serve(async (req) => {
       // Get ingredient multiplier from selected size
       const sizeMultiplier = item.selectedSize?.ingredient_multiplier || 1
 
+      // Load per-size ingredient overrides for the selected size
+      let sizeOverrides: Record<string, number> = {}
+      if (item.selectedSize?.id) {
+        const { data: overrides, error: overridesError } = await supabase
+          .from('recipe_size_ingredients')
+          .select('inventory_item_id, quantity')
+          .eq('recipe_size_id', item.selectedSize.id)
+        if (overridesError) {
+          console.error('Error fetching size ingredient overrides:', overridesError)
+        } else {
+          for (const o of overrides || []) {
+            sizeOverrides[o.inventory_item_id] = Number(o.quantity)
+          }
+        }
+      }
+
       // Apply size multiplier to ingredient deductions
       for (const ingredient of recipeIngredients || []) {
         const usagePerStock = Number(ingredient.inventory_items?.usage_per_stock_unit || 1)
-        const recipeQtyInUsageUnits = Number(ingredient.quantity) * item.quantity * sizeMultiplier
+        const perUnitQty = sizeOverrides[ingredient.inventory_item_id] !== undefined
+          ? sizeOverrides[ingredient.inventory_item_id]
+          : Number(ingredient.quantity) * sizeMultiplier
+        const recipeQtyInUsageUnits = perUnitQty * item.quantity
         const totalUsedInStockUnits = recipeQtyInUsageUnits / usagePerStock
         
         const currentStock = Number(ingredient.inventory_items?.current_stock || 0)
