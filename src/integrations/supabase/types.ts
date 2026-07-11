@@ -817,6 +817,48 @@ export type Database = {
           },
         ]
       }
+      recipe_size_ingredients: {
+        Row: {
+          created_at: string
+          id: string
+          inventory_item_id: string
+          quantity: number
+          recipe_size_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inventory_item_id: string
+          quantity?: number
+          recipe_size_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inventory_item_id?: string
+          quantity?: number
+          recipe_size_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_size_ingredients_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipe_size_ingredients_recipe_size_id_fkey"
+            columns: ["recipe_size_id"]
+            isOneToOne: false
+            referencedRelation: "recipe_sizes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recipe_sizes: {
         Row: {
           created_at: string
