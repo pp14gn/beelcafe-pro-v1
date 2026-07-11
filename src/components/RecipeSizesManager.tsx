@@ -459,8 +459,8 @@ const RecipeSizesManager = ({ recipeId, hasSizes, onHasSizesChange }: RecipeSize
           </div>
 
           {/* Existing sizes */}
-          <ScrollArea className="max-h-[250px]">
-            <div className="space-y-2">
+          <ScrollArea className="h-[300px] rounded-md border p-2">
+            <div className="space-y-2 pr-2">
               {sizes.map((size) => (
                 <div key={size.id} className="flex flex-col gap-2 p-2 border rounded">
                   {editingSize?.id === size.id ? (
