@@ -648,7 +648,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                   onChange={(e) => setNewModifier(prev => ({ ...prev, quantity: e.target.value }))}
                   className="w-24"
                 />
-                <Button onClick={addModifier} size="sm">
+                <Button type="button" onClick={addModifier} size="sm">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -682,12 +682,14 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                           className="w-24"
                         />
                         <Button 
+                          type="button"
                           size="sm" 
                           onClick={() => updateModifier(modifier.id, editingModifier.inventory_item_id, editingModifier.quantity)}
                         >
                           Save
                         </Button>
                         <Button 
+                          type="button"
                           size="sm" 
                           variant="outline" 
                           onClick={() => setEditingModifier(null)}
@@ -709,6 +711,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                           </Badge>
                         </div>
                         <Button 
+                          type="button"
                           size="sm" 
                           variant="ghost"
                           onClick={() => setEditingModifier({ 
@@ -720,6 +723,7 @@ const EditRecipeDialog = ({ isOpen, onClose, onSuccess, recipe }: EditRecipeDial
                           <Edit3 className="h-4 w-4" />
                         </Button>
                         <Button 
+                          type="button"
                           size="sm" 
                           variant="ghost"
                           onClick={() => deleteModifier(modifier.id)}
