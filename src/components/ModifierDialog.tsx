@@ -134,7 +134,12 @@ const ModifierDialog = ({ isOpen, onClose, item, onConfirm }: ModifierDialogProp
   };
 
   const handleConfirm = () => {
-    onConfirm(item.id, selectedModifiers, selectedSize);
+    // Ensure a size is chosen when the item supports sizes
+    let sizeToApply = selectedSize;
+    if (item.has_sizes && !sizeToApply && sizes.length > 0) {
+      sizeToApply = sizes.find(s => s.is_default) || sizes[0];
+    }
+    onConfirm(item.id, selectedModifiers, sizeToApply);
     onClose();
   };
 

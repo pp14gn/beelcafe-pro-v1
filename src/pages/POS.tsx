@@ -203,6 +203,10 @@ const POS = () => {
           is_active,
           has_sizes,
           photo_url,
+          recipe_sizes (
+            id,
+            is_active
+          ),
           recipe_modifiers (
             id,
             quantity,
@@ -227,12 +231,14 @@ const POS = () => {
         return;
       }
 
-      const formattedMenuItems: MenuItem[] = recipes?.map(recipe => ({
+      const formattedMenuItems: MenuItem[] = recipes?.map(recipe => {
+        const activeSizesCount = (recipe.recipe_sizes || []).filter((s: any) => s.is_active).length;
+        return ({
         id: recipe.id,
         name: recipe.name,
         price: Number(recipe.base_price),
         category: recipe.category,
-        has_sizes: recipe.has_sizes || false,
+        has_sizes: (recipe.has_sizes || false) || activeSizesCount > 0,
         photo_url: recipe.photo_url || null,
         modifiers: recipe.recipe_modifiers
           ?.filter(modifier => modifier.is_active && modifier.inventory_item)
@@ -246,7 +252,8 @@ const POS = () => {
             },
             quantity: Number(modifier.quantity)
           })) || []
-      })) || [];
+        });
+      }) || [];
 
       setMenuItems(formattedMenuItems);
 
