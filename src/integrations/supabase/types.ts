@@ -529,6 +529,11 @@ export type Database = {
           customer_phone: string
           delivery_address: string | null
           delivery_notes: string | null
+          external_display_id: string | null
+          external_order_id: string | null
+          external_payload: Json | null
+          external_provider: string | null
+          external_state: string | null
           fulfilled_at: string | null
           fulfilled_by: string | null
           fulfillment_type: string
@@ -551,6 +556,11 @@ export type Database = {
           customer_phone: string
           delivery_address?: string | null
           delivery_notes?: string | null
+          external_display_id?: string | null
+          external_order_id?: string | null
+          external_payload?: Json | null
+          external_provider?: string | null
+          external_state?: string | null
           fulfilled_at?: string | null
           fulfilled_by?: string | null
           fulfillment_type: string
@@ -573,6 +583,11 @@ export type Database = {
           customer_phone?: string
           delivery_address?: string | null
           delivery_notes?: string | null
+          external_display_id?: string | null
+          external_order_id?: string | null
+          external_payload?: Json | null
+          external_provider?: string | null
+          external_state?: string | null
           fulfilled_at?: string | null
           fulfilled_by?: string | null
           fulfillment_type?: string
@@ -1104,6 +1119,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      uber_eats_config: {
+        Row: {
+          auto_accept_orders: boolean
+          created_at: string
+          id: string
+          is_enabled: boolean
+          last_menu_sync_at: string | null
+          last_menu_sync_status: string | null
+          store_id: string | null
+          store_name: string | null
+          store_status: string
+          updated_at: string
+        }
+        Insert: {
+          auto_accept_orders?: boolean
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          last_menu_sync_at?: string | null
+          last_menu_sync_status?: string | null
+          store_id?: string | null
+          store_name?: string | null
+          store_status?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_accept_orders?: boolean
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          last_menu_sync_at?: string | null
+          last_menu_sync_status?: string | null
+          store_id?: string | null
+          store_name?: string | null
+          store_status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      uber_eats_sync_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          message: string | null
+          success: boolean
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          message?: string | null
+          success?: boolean
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          message?: string | null
+          success?: boolean
+        }
+        Relationships: []
       }
       units: {
         Row: {

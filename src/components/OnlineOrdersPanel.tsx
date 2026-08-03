@@ -19,11 +19,14 @@ type OnlineOrder = {
   items: any[];
   subtotal: number;
   total: number;
-  payment_method: "counter" | "online_card";
+  payment_method: "counter" | "online_card" | "uber_eats";
   payment_status: string;
   status: string;
   source: string;
   created_at: string;
+  external_provider?: string | null;
+  external_order_id?: string | null;
+  external_display_id?: string | null;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -33,6 +36,7 @@ const STATUS_COLORS: Record<string, string> = {
   ready: "bg-green-500",
   completed: "bg-stone-500",
   cancelled: "bg-red-500",
+  denied: "bg-red-700",
 };
 
 const NEXT: Record<string, { label: string; status: string } | null> = {
@@ -42,6 +46,7 @@ const NEXT: Record<string, { label: string; status: string } | null> = {
   ready: { label: "Complete", status: "completed" },
   completed: null,
   cancelled: null,
+  denied: null,
 };
 
 export default function OnlineOrdersPanel({ shiftId }: { shiftId?: string }) {
@@ -86,6 +91,18 @@ export default function OnlineOrdersPanel({ shiftId }: { shiftId?: string }) {
     if (!next) return;
     setBusy(o.id);
     try {
+      // Keep Uber Eats in sync for marketplace orders
+      if (o.external_provider === "uber_eats") {
+        const ueAction = next.status === "accepted" ? "accept" : next.status === "ready" ? "ready" : null;
+        if (ueAction) {
+          const { data, error: ueErr } = await supabase.functions.invoke("uber-eats-order-action", {
+            body: { order_id: o.id, action: ueAction },
+          });
+          if (ueErr) throw ueErr;
+          if ((data as any)?.error) throw new Error((data as any).error);
+        }
+      }
+
       // On completion: record a sale and deduct inventory
       if (next.status === "completed") {
         if (!user) throw new Error("Not signed in");
@@ -135,6 +152,17 @@ export default function OnlineOrdersPanel({ shiftId }: { shiftId?: string }) {
   const cancel = async (o: OnlineOrder) => {
     if (!confirm("Cancel this order?")) return;
     setBusy(o.id);
+    if (o.external_provider === "uber_eats") {
+      const action = o.status === "new" ? "deny" : "cancel";
+      const { error: ueErr } = await supabase.functions.invoke("uber-eats-order-action", {
+        body: { order_id: o.id, action },
+      });
+      if (ueErr) {
+        setBusy(null);
+        toast({ variant: "destructive", title: "Uber Eats rejected the cancellation", description: ueErr.message });
+        return;
+      }
+    }
     const { error } = await supabase
       .from("online_orders")
       .update({ status: "cancelled" })
@@ -156,6 +184,11 @@ export default function OnlineOrdersPanel({ shiftId }: { shiftId?: string }) {
               <div>
                 <div className="font-semibold">{o.customer_name}</div>
                 <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
+                {o.external_provider === "uber_eats" && (
+                  <Badge variant="outline" className="mt-1 text-[10px]">
+                    Uber Eats{o.external_display_id ? ` #${o.external_display_id}` : ""}
+                  </Badge>
+                )}
               </div>
               <div className="flex flex-col items-end gap-1">
                 <Badge className={`${STATUS_COLORS[o.status]} text-white capitalize`}>{o.status}</Badge>

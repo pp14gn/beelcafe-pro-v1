@@ -12,6 +12,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useToast } from "@/hooks/use-toast";
 import { MercadoPagoSettings } from "@/components/MercadoPagoSettings";
+import { UberEatsSettings } from "@/components/UberEatsSettings";
 import { CategoryManagement } from "@/components/CategoryManagement";
 import { PromotionsManager } from "@/components/PromotionsManager";
 import { ComboPromotionsManager } from "@/components/ComboPromotionsManager";
@@ -116,12 +117,13 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="general">{t('settings.general')}</TabsTrigger>
           <TabsTrigger value="categories">{t('settings.categories')}</TabsTrigger>
           <TabsTrigger value="promotions">Promotions</TabsTrigger>
           <TabsTrigger value="hours">{t('settings.hours')}</TabsTrigger>
           <TabsTrigger value="mercadopago">MercadoPago</TabsTrigger>
+          <TabsTrigger value="ubereats">Uber Eats</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
@@ -518,6 +520,10 @@ const Settings = () => {
             settings={settings}
             updateSettings={updateSettings}
           />
+        </TabsContent>
+
+        <TabsContent value="ubereats" className="space-y-6">
+          <UberEatsSettings />
         </TabsContent>
       </Tabs>
 
