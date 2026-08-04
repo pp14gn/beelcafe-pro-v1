@@ -16,8 +16,16 @@ serve(async (req) => {
   }
 
   try {
+    let dryRun = false;
+    try {
+      const body = await req.json();
+      dryRun = body?.dry_run === true;
+    } catch { /* no body */ }
+
     const config = await getConfig();
-    if (!config?.store_id) return json({ error: "Set your Uber Eats Store ID in Settings first." }, 400);
+    if (!config?.store_id && !dryRun) {
+      return json({ error: "Set your Uber Eats Store ID in Settings first." }, 400);
+    }
 
     const supabase = admin();
     const [{ data: recipes }, { data: sizes }, { data: modifiers }, { data: settingsRows }] = await Promise.all([
@@ -135,6 +143,50 @@ serve(async (req) => {
       modifier_groups: modifierGroups,
       display_options: {},
     };
+
+    if (dryRun) {
+      const preview = {
+        store_id: config?.store_id ?? null,
+        totals: {
+          recipes: recipes?.length ?? 0,
+          categories: categories.length,
+          items: items.length,
+          modifier_groups: modifierGroups.length,
+        },
+        categories: categories.map((c) => ({
+          title: c.title.translations.en_us,
+          item_count: c.entities.length,
+        })),
+        recipes: (recipes ?? []).map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          category: r.category || "Menu",
+          price: Number(r.base_price || 0),
+          sizes: (sizes ?? [])
+            .filter((s: any) => s.recipe_id === r.id)
+            .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            .map((s: any) => ({
+              name: s.name,
+              price_adjustment: Number(s.price_adjustment || 0),
+              is_default: !!s.is_default,
+            })),
+          modifiers: (modifiers ?? [])
+            .filter((m: any) => m.recipe_id === r.id)
+            .map((m: any) => ({
+              name: m.inventory_item?.name ?? "Extra",
+              price:
+                Number(m.inventory_item?.cost_per_unit ?? 0) * Number(m.quantity ?? 0),
+            })),
+        })),
+        service_availability: menu.menus[0].service_availability,
+      };
+      return json({
+        success: true,
+        dry_run: true,
+        message: `Dry run: ${preview.totals.recipes} recipes, ${preview.totals.items} items, ${preview.totals.modifier_groups} modifier groups would be sent`,
+        preview,
+      });
+    }
 
     const res = await uberFetch(`/v2/eats/stores/${config.store_id}/menus`, {
       method: "PUT",
