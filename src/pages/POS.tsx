@@ -451,6 +451,115 @@ const POS = () => {
     }
   };
 
+  const loadTabs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('order_tabs')
+        .select('id, name, items, total_amount, status')
+        .eq('status', 'open')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setOpenTabs(((data || []) as any[]).map((t) => ({
+        ...t,
+        items: Array.isArray(t.items) ? t.items : [],
+      })) as OrderTab[]);
+    } catch (error) {
+      console.error('Error loading tabs:', error);
+    }
+  };
+
+  const createTab = async (name: string) => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('order_tabs')
+        .insert({
+          user_id: user.id,
+          shift_id: currentShift?.id || null,
+          name,
+          customer_id: selectedCustomer?.id || null,
+        })
+        .select('id, name, items, total_amount, status')
+        .single();
+
+      if (error) throw error;
+
+      setOpenTabs((prev) => [...prev, { ...(data as any), items: [] } as OrderTab]);
+      setActiveTabId(data.id);
+      toast({ title: "Tab opened", description: `Tab "${name}" is now open.` });
+    } catch (error) {
+      console.error('Error creating tab:', error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to open the tab." });
+    }
+  };
+
+  // Sends the current cart as a new kitchen ticket attached to the active tab
+  const sendCartToTab = async (): Promise<OrderTab | null> => {
+    const tab = openTabs.find((t) => t.id === activeTabId) || null;
+    if (!tab || cart.length === 0 || !user) return tab;
+
+    setSendingToKitchen(true);
+    try {
+      const roundTotal = getTotalPrice();
+
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          shift_id: currentShift?.id || null,
+          tab_id: tab.id,
+          items: cart as any,
+          total_amount: roundTotal,
+          status: 'pending',
+          start_time: new Date().toISOString(),
+          customer_name: tab.name,
+        });
+
+      if (orderError) throw orderError;
+
+      const updatedItems = [...(tab.items || []), ...cart];
+      const updatedTotal = Number(tab.total_amount || 0) + roundTotal;
+
+      const { error: tabError } = await supabase
+        .from('order_tabs')
+        .update({ items: updatedItems as any, total_amount: updatedTotal })
+        .eq('id', tab.id);
+
+      if (tabError) throw tabError;
+
+      const updatedTab: OrderTab = { ...tab, items: updatedItems, total_amount: updatedTotal };
+      setOpenTabs((prev) => prev.map((t) => (t.id === tab.id ? updatedTab : t)));
+      setCart([]);
+
+      toast({
+        title: "Sent to kitchen",
+        description: `${cart.length} item(s) added to ${tab.name} and sent to active orders.`,
+      });
+
+      return updatedTab;
+    } catch (error) {
+      console.error('Error sending items to tab:', error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to send items to the kitchen." });
+      return tab;
+    } finally {
+      setSendingToKitchen(false);
+    }
+  };
+
+  const closeTab = async (tabId: string, saleId?: string) => {
+    try {
+      await supabase
+        .from('order_tabs')
+        .update({ status: 'closed', closed_at: new Date().toISOString(), sale_id: saleId || null })
+        .eq('id', tabId);
+    } catch (error) {
+      console.error('Error closing tab:', error);
+    }
+    setOpenTabs((prev) => prev.filter((t) => t.id !== tabId));
+    setActiveTabId((prev) => (prev === tabId ? null : prev));
+  };
+
   const addToCart = async (menuItem: MenuItem) => {
     const { lowStock, critical } = await checkInventoryForItem(menuItem);
 
