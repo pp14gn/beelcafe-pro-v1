@@ -1223,7 +1223,14 @@ const POS = () => {
             {!isMobile && (
               <div className="w-96 bg-card border-l border-border shadow-elevated">
                 <div className="p-6 border-b border-border">
-                  <h2 className="text-xl font-bold text-foreground">Current Order</h2>
+                  <h2 className="text-xl font-bold text-foreground">
+                    {activeTab ? `Tab: ${activeTab.name}` : 'Current Order'}
+                  </h2>
+                  {activeTab && (
+                    <p className="text-sm text-muted-foreground">
+                      {(activeTab.items || []).length} item(s) already sent · Running total ${Number(activeTab.total_amount || 0).toFixed(2)}
+                    </p>
+                  )}
                 </div>
 
                 <ScrollArea className="flex-1 p-4 h-[calc(100vh-280px)]">
