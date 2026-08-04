@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useSettings } from "@/hooks/useSettings";
 import CustomerSelectDialog from "@/components/CustomerSelectDialog";
+import POSTabsBar, { OrderTab } from "@/components/POSTabsBar";
 import { 
   Coffee, 
   Plus, 
@@ -36,7 +37,9 @@ import {
   Search,
   Coins,
   Tag,
-  ExternalLink
+  ExternalLink,
+  Send,
+  Users
 } from "lucide-react";
 
 
@@ -118,6 +121,9 @@ const POS = () => {
   const [activePromotions, setActivePromotions] = useState<Promotion[]>([]);
   const [payWithPointsOpen, setPayWithPointsOpen] = useState(false);
   const [pointsDiscount, setPointsDiscount] = useState(0);
+  const [openTabs, setOpenTabs] = useState<OrderTab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [sendingToKitchen, setSendingToKitchen] = useState(false);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -137,6 +143,7 @@ const POS = () => {
     loadCurrentCashTotal();
     loadMenuItems();
     loadActivePromotions();
+    loadTabs();
   }, [user]);
 
   const loadActivePromotions = async () => {
