@@ -1567,19 +1567,23 @@ const POS = () => {
               storeName: settings.storeName,
               storeAddress: settings.storeAddress,
               storePhone: settings.storePhone,
-              items: cart.map(item => ({
+              items: paymentItems.map((item: any) => ({
                 name: item.name,
                 quantity: item.quantity,
-                price: item.price + item.selectedModifiers.reduce((sum, mod) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0),
+                price: item.price + (item.selectedModifiers || []).reduce((sum: number, mod: any) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0),
                 selectedModifiers: item.selectedModifiers,
               })),
-              total: getTotalPrice(),
+              total: paymentTotal,
               paymentMethod: 'card',
-              customerName: customerName || undefined,
+              customerName: activeTab?.name || customerName || undefined,
               cashier: user?.email || 'Unknown',
               timestamp: new Date(),
               receiptNumber: receiptPrinter.generateReceiptNumber(),
             });
+          }
+
+          if (activeTab) {
+            closeTab(activeTab.id);
           }
 
           // Clear cart and reset
@@ -1592,17 +1596,17 @@ const POS = () => {
           
           toast({
             title: "Sale Completed",
-            description: `Card payment of $${getTotalPrice().toFixed(2)} processed successfully.`,
+            description: `Card payment of $${paymentTotal.toFixed(2)} processed successfully.`,
           });
         }}
-        total={getTotalPrice()}
-        items={cart.map(item => ({
+        total={paymentTotal}
+        items={paymentItems.map((item: any) => ({
           name: item.name,
           quantity: item.quantity,
-          price: item.price + item.selectedModifiers.reduce((sum, mod) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0),
+          price: item.price + (item.selectedModifiers || []).reduce((sum: number, mod: any) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0),
           modifiers: item.selectedModifiers,
         }))}
-        customerName={customerName}
+        customerName={activeTab?.name || customerName}
         customerId={selectedCustomer?.id}
         userId={user?.id || ''}
         shiftId={currentShift?.id}
