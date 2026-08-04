@@ -453,6 +453,7 @@ const POS = () => {
 
   const addToCart = async (menuItem: MenuItem) => {
     const { lowStock, critical } = await checkInventoryForItem(menuItem);
+
     
     if (critical.length > 0 || lowStock.length > 0) {
       setLowStockItems(lowStock);
