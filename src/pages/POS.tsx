@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useSettings } from "@/hooks/useSettings";
 import CustomerSelectDialog from "@/components/CustomerSelectDialog";
+import POSTabsBar, { OrderTab } from "@/components/POSTabsBar";
 import { 
   Coffee, 
   Plus, 
@@ -36,7 +37,8 @@ import {
   Search,
   Coins,
   Tag,
-  ExternalLink
+  ExternalLink,
+  Send
 } from "lucide-react";
 
 
@@ -118,6 +120,9 @@ const POS = () => {
   const [activePromotions, setActivePromotions] = useState<Promotion[]>([]);
   const [payWithPointsOpen, setPayWithPointsOpen] = useState(false);
   const [pointsDiscount, setPointsDiscount] = useState(0);
+  const [openTabs, setOpenTabs] = useState<OrderTab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [sendingToKitchen, setSendingToKitchen] = useState(false);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -137,6 +142,7 @@ const POS = () => {
     loadCurrentCashTotal();
     loadMenuItems();
     loadActivePromotions();
+    loadTabs();
   }, [user]);
 
   const loadActivePromotions = async () => {
@@ -444,8 +450,118 @@ const POS = () => {
     }
   };
 
+  const loadTabs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('order_tabs')
+        .select('id, name, items, total_amount, status')
+        .eq('status', 'open')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setOpenTabs(((data || []) as any[]).map((t) => ({
+        ...t,
+        items: Array.isArray(t.items) ? t.items : [],
+      })) as OrderTab[]);
+    } catch (error) {
+      console.error('Error loading tabs:', error);
+    }
+  };
+
+  const createTab = async (name: string) => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('order_tabs')
+        .insert({
+          user_id: user.id,
+          shift_id: currentShift?.id || null,
+          name,
+          customer_id: selectedCustomer?.id || null,
+        })
+        .select('id, name, items, total_amount, status')
+        .single();
+
+      if (error) throw error;
+
+      setOpenTabs((prev) => [...prev, { ...(data as any), items: [] } as OrderTab]);
+      setActiveTabId(data.id);
+      toast({ title: "Tab opened", description: `Tab "${name}" is now open.` });
+    } catch (error) {
+      console.error('Error creating tab:', error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to open the tab." });
+    }
+  };
+
+  // Sends the current cart as a new kitchen ticket attached to the active tab
+  const sendCartToTab = async (): Promise<OrderTab | null> => {
+    const tab = openTabs.find((t) => t.id === activeTabId) || null;
+    if (!tab || cart.length === 0 || !user) return tab;
+
+    setSendingToKitchen(true);
+    try {
+      const roundTotal = getTotalPrice();
+
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          shift_id: currentShift?.id || null,
+          tab_id: tab.id,
+          items: cart as any,
+          total_amount: roundTotal,
+          status: 'pending',
+          start_time: new Date().toISOString(),
+          customer_name: tab.name,
+        });
+
+      if (orderError) throw orderError;
+
+      const updatedItems = [...(tab.items || []), ...cart];
+      const updatedTotal = Number(tab.total_amount || 0) + roundTotal;
+
+      const { error: tabError } = await supabase
+        .from('order_tabs')
+        .update({ items: updatedItems as any, total_amount: updatedTotal })
+        .eq('id', tab.id);
+
+      if (tabError) throw tabError;
+
+      const updatedTab: OrderTab = { ...tab, items: updatedItems, total_amount: updatedTotal };
+      setOpenTabs((prev) => prev.map((t) => (t.id === tab.id ? updatedTab : t)));
+      setCart([]);
+
+      toast({
+        title: "Sent to kitchen",
+        description: `${cart.length} item(s) added to ${tab.name} and sent to active orders.`,
+      });
+
+      return updatedTab;
+    } catch (error) {
+      console.error('Error sending items to tab:', error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to send items to the kitchen." });
+      return tab;
+    } finally {
+      setSendingToKitchen(false);
+    }
+  };
+
+  const closeTab = async (tabId: string, saleId?: string) => {
+    try {
+      await supabase
+        .from('order_tabs')
+        .update({ status: 'closed', closed_at: new Date().toISOString(), sale_id: saleId || null })
+        .eq('id', tabId);
+    } catch (error) {
+      console.error('Error closing tab:', error);
+    }
+    setOpenTabs((prev) => prev.filter((t) => t.id !== tabId));
+    setActiveTabId((prev) => (prev === tabId ? null : prev));
+  };
+
   const addToCart = async (menuItem: MenuItem) => {
     const { lowStock, critical } = await checkInventoryForItem(menuItem);
+
     
     if (critical.length > 0 || lowStock.length > 0) {
       setLowStockItems(lowStock);
@@ -592,19 +708,38 @@ const POS = () => {
     executeProcessSale(paymentMethod);
   };
 
-  const executeProcessSale = async (paymentMethod: 'cash' | 'card') => {
-    if (cart.length === 0 || !user) return;
+  // Closes out an open tab: sends any pending cart items first, then charges the full tab
+  const payActiveTab = async (paymentMethod: 'cash' | 'card') => {
+    const current = openTabs.find((t) => t.id === activeTabId);
+    if (!current) return;
+
+    const tab = cart.length > 0 ? await sendCartToTab() : current;
+    if (!tab || (tab.items || []).length === 0) {
+      toast({ title: "Empty tab", description: "Add items to the tab before charging it." });
+      return;
+    }
+
+    if (paymentMethod === 'cash') {
+      await executeProcessSale('cash', tab);
+    } else {
+      setCardPaymentDialogOpen(true);
+    }
+  };
+
+  const executeProcessSale = async (paymentMethod: 'cash' | 'card', tab?: OrderTab | null) => {
+    const saleItems: any[] = tab ? (tab.items || []) : cart;
+    if (saleItems.length === 0 || !user) return;
 
     try {
-      const total = getTotalPrice();
-      
+      const total = tab ? Number(tab.total_amount || 0) : getTotalPrice();
+
       // Insert sale with customer_id if selected
       const { data: saleData, error: saleError } = await supabase
         .from('sales')
         .insert({
           user_id: user.id,
           shift_id: currentShift?.id || null,
-          items: cart as any,
+          items: saleItems as any,
           total_amount: total,
           payment_method: paymentMethod,
           customer_id: selectedCustomer?.id || null,
@@ -718,26 +853,29 @@ const POS = () => {
         }
       }
 
-      const { error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          shift_id: currentShift?.id || null,
-          items: cart as any,
-          total_amount: total,
-          status: 'pending',
-          start_time: new Date().toISOString(),
-          customer_name: customerName.trim() || selectedCustomer?.name || null,
-        });
+      // Tab items were already sent to the kitchen as they were added
+      if (!tab) {
+        const { error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            user_id: user.id,
+            shift_id: currentShift?.id || null,
+            items: cart as any,
+            total_amount: total,
+            status: 'pending',
+            start_time: new Date().toISOString(),
+            customer_name: customerName.trim() || selectedCustomer?.name || null,
+          });
 
-      if (orderError) {
-        console.error('Order creation error:', orderError);
+        if (orderError) {
+          console.error('Order creation error:', orderError);
+        }
       }
 
       // Update inventory based on recipe ingredients
       try {
         const { error: inventoryError } = await supabase.functions.invoke('process-sale-inventory', {
-          body: { items: cart }
+          body: { items: saleItems }
         });
 
         if (inventoryError) {
@@ -754,7 +892,7 @@ const POS = () => {
             storeName: settings.storeName,
             storeAddress: settings.storeAddress,
             storePhone: settings.storePhone,
-            items: cart.map(item => ({
+            items: saleItems.map((item: any) => ({
               name: item.name,
               quantity: item.quantity,
               price: item.price,
@@ -762,7 +900,7 @@ const POS = () => {
             })),
             total,
             paymentMethod,
-            customerName: customerName.trim() || selectedCustomer?.name || undefined,
+            customerName: tab?.name || customerName.trim() || selectedCustomer?.name || undefined,
             cashier: user?.email || 'Unknown',
             timestamp: new Date(),
             receiptNumber: receiptPrinter.generateReceiptNumber()
@@ -785,6 +923,10 @@ const POS = () => {
         title: "Sale Completed",
         description: `${paymentMethod === 'cash' ? 'Cash' : 'Card'} payment of $${total.toFixed(2)} processed successfully.`,
       });
+
+      if (tab) {
+        await closeTab(tab.id, saleData?.id);
+      }
 
       setCart([]);
       setCustomerName("");
@@ -900,6 +1042,10 @@ const POS = () => {
     }
   };
 
+  const activeTab = openTabs.find((t) => t.id === activeTabId) || null;
+  const paymentItems: any[] = activeTab ? (activeTab.items || []) : cart;
+  const paymentTotal = activeTab ? Number(activeTab.total_amount || 0) : getTotalPrice();
+
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-background pb-20 lg:pb-0">
       {/* Header */}
@@ -968,8 +1114,21 @@ const POS = () => {
             {/* Menu Section */}
             <div className="flex-1 p-4 lg:p-6">
               <p className="text-muted-foreground mb-4 lg:mb-6 text-sm lg:text-base">
-                {currentShift ? 'Select items to add to the current order' : 'Start a shift to begin taking orders'}
+                {!currentShift
+                  ? 'Start a shift to begin taking orders'
+                  : activeTab
+                    ? `Adding items to tab "${activeTab.name}" — send each round to the kitchen, charge at the end`
+                    : 'Select items to add to the current order'}
               </p>
+
+              {/* Order Tabs */}
+              <POSTabsBar
+                tabs={openTabs}
+                activeTabId={activeTabId}
+                onSelect={setActiveTabId}
+                onCreate={createTab}
+                disabled={!currentShift}
+              />
 
               {/* Category Tabs */}
               <div className="flex gap-2 mb-4 lg:mb-6 overflow-x-auto pb-2">
@@ -1063,7 +1222,14 @@ const POS = () => {
             {!isMobile && (
               <div className="w-96 bg-card border-l border-border shadow-elevated">
                 <div className="p-6 border-b border-border">
-                  <h2 className="text-xl font-bold text-foreground">Current Order</h2>
+                  <h2 className="text-xl font-bold text-foreground">
+                    {activeTab ? `Tab: ${activeTab.name}` : 'Current Order'}
+                  </h2>
+                  {activeTab && (
+                    <p className="text-sm text-muted-foreground">
+                      {(activeTab.items || []).length} item(s) already sent · Running total ${Number(activeTab.total_amount || 0).toFixed(2)}
+                    </p>
+                  )}
                 </div>
 
                 <ScrollArea className="flex-1 p-4 h-[calc(100vh-280px)]">
@@ -1203,10 +1369,33 @@ const POS = () => {
                       </div>
                     )}
                     
+                    {activeTab && (
+                      <>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">New items:</span>
+                          <span className="font-medium">${getTotalPrice().toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">Already on tab:</span>
+                          <span className="font-medium">${Number(activeTab.total_amount || 0).toFixed(2)}</span>
+                        </div>
+                        <Button
+                          className="w-full gap-2 bg-gradient-coffee hover:opacity-90"
+                          onClick={sendCartToTab}
+                          disabled={cart.length === 0 || !currentShift || sendingToKitchen}
+                        >
+                          <Send className="h-4 w-4" />
+                          Send to kitchen
+                        </Button>
+                      </>
+                    )}
+
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold text-foreground">Total:</span>
+                      <span className="font-semibold text-foreground">
+                        {activeTab ? 'Tab total:' : 'Total:'}
+                      </span>
                       <span className="text-xl font-bold text-coffee-gold">
-                        ${getTotalPrice().toFixed(2)}
+                        ${(activeTab ? Number(activeTab.total_amount || 0) + getTotalPrice() : getTotalPrice()).toFixed(2)}
                       </span>
                     </div>
                     
@@ -1225,26 +1414,37 @@ const POS = () => {
                     
                     <Separator />
                     
+                    {activeTab && (
+                      <p className="text-xs text-muted-foreground">
+                        Charging closes the tab and includes any items still in the cart.
+                      </p>
+                    )}
+
                     <div className="grid grid-cols-2 gap-2">
                       <Button 
                         variant="outline" 
                         className="gap-2"
-                        onClick={() => processSale('cash')}
-                        disabled={cart.length === 0 || !currentShift}
+                        onClick={() => (activeTab ? payActiveTab('cash') : processSale('cash'))}
+                        disabled={(!activeTab && cart.length === 0) || !currentShift}
                       >
                         <DollarSign className="h-4 w-4" />
-                        Cash
+                        {activeTab ? 'Charge cash' : 'Cash'}
                       </Button>
                       <Button 
                         className="gap-2 bg-gradient-coffee hover:opacity-90"
                         onClick={() => {
-                          if (cart.length === 0 || !currentShift) return;
+                          if (!currentShift) return;
+                          if (activeTab) {
+                            payActiveTab('card');
+                            return;
+                          }
+                          if (cart.length === 0) return;
                           setCardPaymentDialogOpen(true);
                         }}
-                        disabled={cart.length === 0 || !currentShift}
+                        disabled={(!activeTab && cart.length === 0) || !currentShift}
                       >
                         <CreditCard className="h-4 w-4" />
-                        Card
+                        {activeTab ? 'Charge card' : 'Card'}
                       </Button>
                     </div>
                   </div>
@@ -1255,7 +1455,7 @@ const POS = () => {
       </div>
 
       {/* Mobile Bottom Cart */}
-      {isMobile && cart.length > 0 && (
+      {isMobile && (cart.length > 0 || activeTab) && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 p-4">
           <div className="space-y-3">
             {selectedCustomer ? (
@@ -1303,32 +1503,50 @@ const POS = () => {
             </div>
             
             <div className="flex justify-between items-center">
-              <span className="font-semibold text-foreground">Cart ({cart.length})</span>
+              <span className="font-semibold text-foreground">
+                {activeTab ? `${activeTab.name} · cart (${cart.length})` : `Cart (${cart.length})`}
+              </span>
               <span className="text-lg font-bold text-coffee-gold">
-                ${getTotalPrice().toFixed(2)}
+                ${(activeTab ? Number(activeTab.total_amount || 0) + getTotalPrice() : getTotalPrice()).toFixed(2)}
               </span>
             </div>
-            
+
+            {activeTab && (
+              <Button
+                className="w-full gap-2 bg-gradient-coffee hover:opacity-90"
+                onClick={sendCartToTab}
+                disabled={cart.length === 0 || !currentShift || sendingToKitchen}
+              >
+                <Send className="h-4 w-4" />
+                Send to kitchen
+              </Button>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <Button 
                 variant="outline" 
                 className="gap-2"
-                onClick={() => processSale('cash')}
-                disabled={cart.length === 0 || !currentShift}
+                onClick={() => (activeTab ? payActiveTab('cash') : processSale('cash'))}
+                disabled={(!activeTab && cart.length === 0) || !currentShift}
               >
                 <DollarSign className="h-4 w-4" />
-                Cash
+                {activeTab ? 'Charge cash' : 'Cash'}
               </Button>
               <Button 
                 className="gap-2 bg-gradient-coffee hover:opacity-90"
                 onClick={() => {
-                  if (cart.length === 0 || !currentShift) return;
+                  if (!currentShift) return;
+                  if (activeTab) {
+                    payActiveTab('card');
+                    return;
+                  }
+                  if (cart.length === 0) return;
                   setCardPaymentDialogOpen(true);
                 }}
-                disabled={cart.length === 0 || !currentShift}
+                disabled={(!activeTab && cart.length === 0) || !currentShift}
               >
                 <CreditCard className="h-4 w-4" />
-                Card
+                {activeTab ? 'Charge card' : 'Card'}
               </Button>
             </div>
           </div>
@@ -1348,19 +1566,23 @@ const POS = () => {
               storeName: settings.storeName,
               storeAddress: settings.storeAddress,
               storePhone: settings.storePhone,
-              items: cart.map(item => ({
+              items: paymentItems.map((item: any) => ({
                 name: item.name,
                 quantity: item.quantity,
-                price: item.price + item.selectedModifiers.reduce((sum, mod) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0),
+                price: item.price + (item.selectedModifiers || []).reduce((sum: number, mod: any) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0),
                 selectedModifiers: item.selectedModifiers,
               })),
-              total: getTotalPrice(),
+              total: paymentTotal,
               paymentMethod: 'card',
-              customerName: customerName || undefined,
+              customerName: activeTab?.name || customerName || undefined,
               cashier: user?.email || 'Unknown',
               timestamp: new Date(),
               receiptNumber: receiptPrinter.generateReceiptNumber(),
             });
+          }
+
+          if (activeTab) {
+            closeTab(activeTab.id);
           }
 
           // Clear cart and reset
@@ -1373,17 +1595,17 @@ const POS = () => {
           
           toast({
             title: "Sale Completed",
-            description: `Card payment of $${getTotalPrice().toFixed(2)} processed successfully.`,
+            description: `Card payment of $${paymentTotal.toFixed(2)} processed successfully.`,
           });
         }}
-        total={getTotalPrice()}
-        items={cart.map(item => ({
+        total={paymentTotal}
+        items={paymentItems.map((item: any) => ({
           name: item.name,
           quantity: item.quantity,
-          price: item.price + item.selectedModifiers.reduce((sum, mod) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0),
+          price: item.price + (item.selectedModifiers || []).reduce((sum: number, mod: any) => sum + (mod.inventory_item.cost_per_unit * mod.quantity), 0),
           modifiers: item.selectedModifiers,
         }))}
-        customerName={customerName}
+        customerName={activeTab?.name || customerName}
         customerId={selectedCustomer?.id}
         userId={user?.id || ''}
         shiftId={currentShift?.id}

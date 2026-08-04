@@ -613,6 +613,73 @@ export type Database = {
           },
         ]
       }
+      order_tabs: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          customer_id: string | null
+          id: string
+          items: Json
+          name: string
+          sale_id: string | null
+          shift_id: string | null
+          status: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          items?: Json
+          name: string
+          sale_id?: string | null
+          shift_id?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          items?: Json
+          name?: string
+          sale_id?: string | null
+          shift_id?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_tabs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_tabs_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_tabs_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           completion_time: string | null
@@ -624,6 +691,7 @@ export type Database = {
           shift_id: string | null
           start_time: string | null
           status: string
+          tab_id: string | null
           total_amount: number
           updated_at: string
           user_id: string
@@ -638,6 +706,7 @@ export type Database = {
           shift_id?: string | null
           start_time?: string | null
           status?: string
+          tab_id?: string | null
           total_amount: number
           updated_at?: string
           user_id: string
@@ -652,6 +721,7 @@ export type Database = {
           shift_id?: string | null
           start_time?: string | null
           status?: string
+          tab_id?: string | null
           total_amount?: number
           updated_at?: string
           user_id?: string
@@ -662,6 +732,13 @@ export type Database = {
             columns: ["shift_id"]
             isOneToOne: false
             referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_tab_id_fkey"
+            columns: ["tab_id"]
+            isOneToOne: false
+            referencedRelation: "order_tabs"
             referencedColumns: ["id"]
           },
           {
