@@ -38,8 +38,7 @@ import {
   Coins,
   Tag,
   ExternalLink,
-  Send,
-  Users
+  Send
 } from "lucide-react";
 
 
