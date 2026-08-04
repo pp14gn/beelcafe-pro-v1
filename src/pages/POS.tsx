@@ -709,19 +709,20 @@ const POS = () => {
     executeProcessSale(paymentMethod);
   };
 
-  const executeProcessSale = async (paymentMethod: 'cash' | 'card') => {
-    if (cart.length === 0 || !user) return;
+  const executeProcessSale = async (paymentMethod: 'cash' | 'card', tab?: OrderTab | null) => {
+    const saleItems: any[] = tab ? (tab.items || []) : cart;
+    if (saleItems.length === 0 || !user) return;
 
     try {
-      const total = getTotalPrice();
-      
+      const total = tab ? Number(tab.total_amount || 0) : getTotalPrice();
+
       // Insert sale with customer_id if selected
       const { data: saleData, error: saleError } = await supabase
         .from('sales')
         .insert({
           user_id: user.id,
           shift_id: currentShift?.id || null,
-          items: cart as any,
+          items: saleItems as any,
           total_amount: total,
           payment_method: paymentMethod,
           customer_id: selectedCustomer?.id || null,
