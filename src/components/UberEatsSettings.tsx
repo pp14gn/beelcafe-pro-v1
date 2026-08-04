@@ -8,7 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical } from "lucide-react";
 
 type Config = {
   id: string;
@@ -37,6 +39,7 @@ export function UberEatsSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [preview, setPreview] = useState<any | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -88,6 +91,22 @@ export function UberEatsSettings() {
 
   const setStatus = (status: string) =>
     call("uber-eats-store", { action: "set_status", status }, `Set store ${status}`);
+
+  const testSync = async () => {
+    setBusy("Test sync");
+    try {
+      const { data, error } = await supabase.functions.invoke("uber-eats-sync-menu", {
+        body: { dry_run: true },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setPreview(data.preview);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Test sync failed", description: e.message });
+    } finally {
+      setBusy(null);
+    }
+  };
 
   if (loading) {
     return <div className="p-6 flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>;
@@ -171,11 +190,77 @@ export function UberEatsSettings() {
             <> Last sync: {new Date(config.last_menu_sync_at).toLocaleString()} ({config.last_menu_sync_status}).</>
           )}
         </p>
-        <Button disabled={busy === "Menu sync"} onClick={() => call("uber-eats-sync-menu", {}, "Menu sync")}>
-          {busy === "Menu sync" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-          Sync menu now
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={!!busy} onClick={() => call("uber-eats-sync-menu", {}, "Menu sync")}>
+            {busy === "Menu sync" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Sync menu now
+          </Button>
+          <Button variant="outline" disabled={!!busy} onClick={testSync}>
+            {busy === "Test sync" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FlaskConical className="h-4 w-4 mr-2" />}
+            Test sync (dry run)
+          </Button>
+        </div>
       </Card>
+
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Dry run preview</DialogTitle>
+            <DialogDescription>
+              Nothing was sent to Uber Eats. This is exactly what a real sync would push.
+            </DialogDescription>
+          </DialogHeader>
+          {preview && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">{preview.totals.recipes} recipes</Badge>
+                <Badge variant="secondary">{preview.totals.categories} categories</Badge>
+                <Badge variant="secondary">{preview.totals.items} items</Badge>
+                <Badge variant="secondary">{preview.totals.modifier_groups} modifier groups</Badge>
+                {!preview.store_id && <Badge variant="destructive">No store ID set</Badge>}
+              </div>
+              <ScrollArea className="h-[420px] rounded-md border p-3">
+                <div className="space-y-3">
+                  {preview.recipes.map((r: any) => (
+                    <div key={r.id} className="rounded-md border p-3 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{r.name}</span>
+                        <span className="text-muted-foreground">${Number(r.price).toFixed(2)}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">{r.category}</div>
+                      {r.sizes.length > 0 && (
+                        <div className="mt-2">
+                          <div className="text-xs font-medium">Sizes</div>
+                          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                            {r.sizes.map((s: any, i: number) => (
+                              <li key={i}>
+                                {s.name}{s.is_default ? " (default)" : ""} — +${Number(s.price_adjustment).toFixed(2)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {r.modifiers.length > 0 && (
+                        <div className="mt-2">
+                          <div className="text-xs font-medium">Extras</div>
+                          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                            {r.modifiers.map((m: any, i: number) => (
+                              <li key={i}>{m.name} — ${Number(m.price).toFixed(2)}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {r.sizes.length === 0 && r.modifiers.length === 0 && (
+                        <div className="mt-1 text-xs text-muted-foreground">No sizes or extras</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Card className="p-6 space-y-3">
         <h3 className="font-semibold">Webhook URL</h3>
