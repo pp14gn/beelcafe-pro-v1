@@ -1456,7 +1456,7 @@ const POS = () => {
       </div>
 
       {/* Mobile Bottom Cart */}
-      {isMobile && cart.length > 0 && (
+      {isMobile && (cart.length > 0 || activeTab) && (
         <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 p-4">
           <div className="space-y-3">
             {selectedCustomer ? (
