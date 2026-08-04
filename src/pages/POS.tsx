@@ -1504,32 +1504,50 @@ const POS = () => {
             </div>
             
             <div className="flex justify-between items-center">
-              <span className="font-semibold text-foreground">Cart ({cart.length})</span>
+              <span className="font-semibold text-foreground">
+                {activeTab ? `${activeTab.name} · cart (${cart.length})` : `Cart (${cart.length})`}
+              </span>
               <span className="text-lg font-bold text-coffee-gold">
-                ${getTotalPrice().toFixed(2)}
+                ${(activeTab ? Number(activeTab.total_amount || 0) + getTotalPrice() : getTotalPrice()).toFixed(2)}
               </span>
             </div>
-            
+
+            {activeTab && (
+              <Button
+                className="w-full gap-2 bg-gradient-coffee hover:opacity-90"
+                onClick={sendCartToTab}
+                disabled={cart.length === 0 || !currentShift || sendingToKitchen}
+              >
+                <Send className="h-4 w-4" />
+                Send to kitchen
+              </Button>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <Button 
                 variant="outline" 
                 className="gap-2"
-                onClick={() => processSale('cash')}
-                disabled={cart.length === 0 || !currentShift}
+                onClick={() => (activeTab ? payActiveTab('cash') : processSale('cash'))}
+                disabled={(!activeTab && cart.length === 0) || !currentShift}
               >
                 <DollarSign className="h-4 w-4" />
-                Cash
+                {activeTab ? 'Charge cash' : 'Cash'}
               </Button>
               <Button 
                 className="gap-2 bg-gradient-coffee hover:opacity-90"
                 onClick={() => {
-                  if (cart.length === 0 || !currentShift) return;
+                  if (!currentShift) return;
+                  if (activeTab) {
+                    payActiveTab('card');
+                    return;
+                  }
+                  if (cart.length === 0) return;
                   setCardPaymentDialogOpen(true);
                 }}
-                disabled={cart.length === 0 || !currentShift}
+                disabled={(!activeTab && cart.length === 0) || !currentShift}
               >
                 <CreditCard className="h-4 w-4" />
-                Card
+                {activeTab ? 'Charge card' : 'Card'}
               </Button>
             </div>
           </div>
