@@ -1043,6 +1043,10 @@ const POS = () => {
     }
   };
 
+  const activeTab = openTabs.find((t) => t.id === activeTabId) || null;
+  const paymentItems: any[] = activeTab ? (activeTab.items || []) : cart;
+  const paymentTotal = activeTab ? Number(activeTab.total_amount || 0) : getTotalPrice();
+
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-background pb-20 lg:pb-0">
       {/* Header */}
@@ -1111,8 +1115,21 @@ const POS = () => {
             {/* Menu Section */}
             <div className="flex-1 p-4 lg:p-6">
               <p className="text-muted-foreground mb-4 lg:mb-6 text-sm lg:text-base">
-                {currentShift ? 'Select items to add to the current order' : 'Start a shift to begin taking orders'}
+                {!currentShift
+                  ? 'Start a shift to begin taking orders'
+                  : activeTab
+                    ? `Adding items to tab "${activeTab.name}" — send each round to the kitchen, charge at the end`
+                    : 'Select items to add to the current order'}
               </p>
+
+              {/* Order Tabs */}
+              <POSTabsBar
+                tabs={openTabs}
+                activeTabId={activeTabId}
+                onSelect={setActiveTabId}
+                onCreate={createTab}
+                disabled={!currentShift}
+              />
 
               {/* Category Tabs */}
               <div className="flex gap-2 mb-4 lg:mb-6 overflow-x-auto pb-2">
