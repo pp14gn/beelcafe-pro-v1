@@ -836,26 +836,29 @@ const POS = () => {
         }
       }
 
-      const { error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          shift_id: currentShift?.id || null,
-          items: cart as any,
-          total_amount: total,
-          status: 'pending',
-          start_time: new Date().toISOString(),
-          customer_name: customerName.trim() || selectedCustomer?.name || null,
-        });
+      // Tab items were already sent to the kitchen as they were added
+      if (!tab) {
+        const { error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            user_id: user.id,
+            shift_id: currentShift?.id || null,
+            items: cart as any,
+            total_amount: total,
+            status: 'pending',
+            start_time: new Date().toISOString(),
+            customer_name: customerName.trim() || selectedCustomer?.name || null,
+          });
 
-      if (orderError) {
-        console.error('Order creation error:', orderError);
+        if (orderError) {
+          console.error('Order creation error:', orderError);
+        }
       }
 
       // Update inventory based on recipe ingredients
       try {
         const { error: inventoryError } = await supabase.functions.invoke('process-sale-inventory', {
-          body: { items: cart }
+          body: { items: saleItems }
         });
 
         if (inventoryError) {
@@ -872,7 +875,7 @@ const POS = () => {
             storeName: settings.storeName,
             storeAddress: settings.storeAddress,
             storePhone: settings.storePhone,
-            items: cart.map(item => ({
+            items: saleItems.map((item: any) => ({
               name: item.name,
               quantity: item.quantity,
               price: item.price,
@@ -880,7 +883,7 @@ const POS = () => {
             })),
             total,
             paymentMethod,
-            customerName: customerName.trim() || selectedCustomer?.name || undefined,
+            customerName: tab?.name || customerName.trim() || selectedCustomer?.name || undefined,
             cashier: user?.email || 'Unknown',
             timestamp: new Date(),
             receiptNumber: receiptPrinter.generateReceiptNumber()
@@ -903,6 +906,10 @@ const POS = () => {
         title: "Sale Completed",
         description: `${paymentMethod === 'cash' ? 'Cash' : 'Card'} payment of $${total.toFixed(2)} processed successfully.`,
       });
+
+      if (tab) {
+        await closeTab(tab.id, saleData?.id);
+      }
 
       setCart([]);
       setCustomerName("");
