@@ -709,6 +709,24 @@ const POS = () => {
     executeProcessSale(paymentMethod);
   };
 
+  // Closes out an open tab: sends any pending cart items first, then charges the full tab
+  const payActiveTab = async (paymentMethod: 'cash' | 'card') => {
+    const current = openTabs.find((t) => t.id === activeTabId);
+    if (!current) return;
+
+    const tab = cart.length > 0 ? await sendCartToTab() : current;
+    if (!tab || (tab.items || []).length === 0) {
+      toast({ title: "Empty tab", description: "Add items to the tab before charging it." });
+      return;
+    }
+
+    if (paymentMethod === 'cash') {
+      await executeProcessSale('cash', tab);
+    } else {
+      setCardPaymentDialogOpen(true);
+    }
+  };
+
   const executeProcessSale = async (paymentMethod: 'cash' | 'card', tab?: OrderTab | null) => {
     const saleItems: any[] = tab ? (tab.items || []) : cart;
     if (saleItems.length === 0 || !user) return;
