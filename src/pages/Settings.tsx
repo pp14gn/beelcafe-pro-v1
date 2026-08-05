@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSettings } from "@/hooks/useSettings";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTranslation } from "@/hooks/useTranslation";
 import { receiptPrinter } from "@/utils/receiptPrinter";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +34,8 @@ import {
 
 const Settings = () => {
   const { settings, updateSettings, resetToDefaults, isLoading } = useSettings();
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.role === 'admin';
   const { t } = useTranslation();
   const { toast } = useToast();
 
@@ -117,13 +120,13 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-6' : 'grid-cols-5'}`}>
           <TabsTrigger value="general">{t('settings.general')}</TabsTrigger>
           <TabsTrigger value="categories">{t('settings.categories')}</TabsTrigger>
           <TabsTrigger value="promotions">Promotions</TabsTrigger>
           <TabsTrigger value="hours">{t('settings.hours')}</TabsTrigger>
           <TabsTrigger value="mercadopago">MercadoPago</TabsTrigger>
-          <TabsTrigger value="ubereats">Uber Eats</TabsTrigger>
+          {isAdmin && <TabsTrigger value="ubereats">Uber Eats</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
@@ -522,9 +525,11 @@ const Settings = () => {
           />
         </TabsContent>
 
-        <TabsContent value="ubereats" className="space-y-6">
-          <UberEatsSettings />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="ubereats" className="space-y-6">
+            <UberEatsSettings />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Save Button */}
