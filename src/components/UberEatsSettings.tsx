@@ -197,6 +197,46 @@ export function UberEatsSettings() {
       </Card>
 
       <Card className="p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold">App authorization</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Grant this app permission to access your Uber Eats store data. Opens Uber's consent screen in a popup.
+        </p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="ue-auth-client">Client ID</Label>
+            <Input id="ue-auth-client" value={authClientId} placeholder="lVdvEDRJyq6x8LoCfSwd…" onChange={(e) => setAuthClientId(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ue-auth-redirect">Redirect URI</Label>
+            <Input id="ue-auth-redirect" value={authRedirect} onChange={(e) => setAuthRedirect(e.target.value)} />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="ue-auth-scopes">Scopes (space separated)</Label>
+            <Input id="ue-auth-scopes" value={authScopes} onChange={(e) => setAuthScopes(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Environment</Label>
+            <p className="text-xs text-muted-foreground">{authEnv === "sandbox" ? "Sandbox login" : "Production login"}</p>
+          </div>
+          <Switch checked={authEnv === "production"} onCheckedChange={(v) => setAuthEnv(v ? "production" : "sandbox")} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={openAuthPopup}>
+            <ExternalLink className="h-4 w-4 mr-2" />Authorize app access
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(authorizeUrl); toast({ title: "Authorization URL copied" }); }}>
+            <Copy className="h-4 w-4 mr-2" />Copy URL
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground break-all">{authorizeUrl}</p>
+      </Card>
+
+      <Card className="p-6 space-y-4">
         <h3 className="font-semibold">Store availability</h3>
         <p className="text-sm text-muted-foreground">
           Current status: <span className="font-medium">{config.store_status}</span>
