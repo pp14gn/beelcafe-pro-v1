@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical } from "lucide-react";
+import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical, ShieldCheck, ExternalLink } from "lucide-react";
 
 type Config = {
   id: string;
@@ -33,6 +33,12 @@ type LogRow = {
 
 const WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uber-eats-webhook`;
 
+const UBER_AUTH_BASE = {
+  sandbox: "https://sandbox-login.uber.com/oauth/v2/authorize",
+  production: "https://login.uber.com/oauth/v2/authorize",
+};
+const DEFAULT_SCOPES = "eats.store eats.store.orders.read eats.store.status.write eats.order";
+
 export function UberEatsSettings() {
   const [config, setConfig] = useState<Config | null>(null);
   const [logs, setLogs] = useState<LogRow[]>([]);
@@ -40,7 +46,30 @@ export function UberEatsSettings() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [preview, setPreview] = useState<any | null>(null);
+  const [authEnv, setAuthEnv] = useState<"sandbox" | "production">(
+    () => (localStorage.getItem("ue_auth_env") as "sandbox" | "production") || "sandbox",
+  );
+  const [authClientId, setAuthClientId] = useState(() => localStorage.getItem("ue_auth_client_id") ?? "");
+  const [authRedirect, setAuthRedirect] = useState(() => localStorage.getItem("ue_auth_redirect") ?? WEBHOOK_URL);
+  const [authScopes, setAuthScopes] = useState(() => localStorage.getItem("ue_auth_scopes") ?? DEFAULT_SCOPES);
   const { toast } = useToast();
+
+  const authorizeUrl = `${UBER_AUTH_BASE[authEnv]}?client_id=${encodeURIComponent(authClientId)}&redirect_uri=${encodeURIComponent(authRedirect)}&scope=${encodeURIComponent(authScopes)}&response_type=code`;
+
+  const openAuthPopup = () => {
+    if (!authClientId) {
+      toast({ title: "Client ID required", description: "Paste your Uber app Client ID first.", variant: "destructive" });
+      return;
+    }
+    localStorage.setItem("ue_auth_env", authEnv);
+    localStorage.setItem("ue_auth_client_id", authClientId);
+    localStorage.setItem("ue_auth_redirect", authRedirect);
+    localStorage.setItem("ue_auth_scopes", authScopes);
+    const popup = window.open(authorizeUrl, "uber-eats-authorize", "width=520,height=720,menubar=no,toolbar=no");
+    if (!popup) {
+      toast({ title: "Popup blocked", description: "Allow popups for this site and try again.", variant: "destructive" });
+    }
+  };
 
   const load = async () => {
     const [{ data: cfg }, { data: logRows }] = await Promise.all([
