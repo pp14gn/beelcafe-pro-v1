@@ -1199,6 +1199,9 @@ export type Database = {
       }
       uber_eats_config: {
         Row: {
+          auth_environment: string | null
+          authorized_at: string | null
+          authorized_scopes: string | null
           auto_accept_orders: boolean
           created_at: string
           id: string
@@ -1211,6 +1214,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auth_environment?: string | null
+          authorized_at?: string | null
+          authorized_scopes?: string | null
           auto_accept_orders?: boolean
           created_at?: string
           id?: string
@@ -1223,6 +1229,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auth_environment?: string | null
+          authorized_at?: string | null
+          authorized_scopes?: string | null
           auto_accept_orders?: boolean
           created_at?: string
           id?: string
@@ -1232,6 +1241,42 @@ export type Database = {
           store_id?: string | null
           store_name?: string | null
           store_status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      uber_eats_oauth: {
+        Row: {
+          access_token: string
+          created_at: string
+          environment: string
+          expires_at: string | null
+          id: string
+          refresh_token: string | null
+          scope: string | null
+          token_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          environment?: string
+          expires_at?: string | null
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          environment?: string
+          expires_at?: string | null
+          id?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_type?: string | null
           updated_at?: string
         }
         Relationships: []
