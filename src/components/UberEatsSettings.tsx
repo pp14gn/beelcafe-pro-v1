@@ -60,7 +60,7 @@ export function UberEatsSettings() {
   const [busy, setBusy] = useState<string | null>(null);
   const [preview, setPreview] = useState<any | null>(null);
   const [authEnv, setAuthEnv] = useState<"sandbox" | "production">(
-    () => (localStorage.getItem("ue_auth_env") as "sandbox" | "production") || "sandbox",
+    () => (localStorage.getItem("ue_auth_env") as "sandbox" | "production") || "production",
   );
   const [authClientId, setAuthClientId] = useState(() => localStorage.getItem("ue_auth_client_id") ?? "");
   const [authRedirect, setAuthRedirect] = useState(() => localStorage.getItem("ue_auth_redirect") ?? OAUTH_CALLBACK_URL);
