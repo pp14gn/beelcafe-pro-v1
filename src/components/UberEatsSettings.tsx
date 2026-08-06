@@ -290,7 +290,9 @@ export function UberEatsSettings() {
         <div className="flex items-center justify-between">
           <div>
             <Label>Environment</Label>
-            <p className="text-xs text-muted-foreground">{authEnv === "sandbox" ? "Sandbox login" : "Production login"}</p>
+            <p className="text-xs text-muted-foreground">
+              {authEnv === "sandbox" ? "sandbox-login.uber.com" : "login.uber.com"} — if you get "Invalid client", switch this toggle: the Client ID must belong to the same environment.
+            </p>
           </div>
           <Switch checked={authEnv === "production"} onCheckedChange={(v) => setAuthEnv(v ? "production" : "sandbox")} />
         </div>
