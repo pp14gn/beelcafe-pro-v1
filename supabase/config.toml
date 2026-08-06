@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.uber-eats-webhook]
 verify_jwt = false
+
+[functions.uber-eats-oauth-callback]
+verify_jwt = false
