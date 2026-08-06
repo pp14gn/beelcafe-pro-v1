@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical, ShieldCheck, ExternalLink } from "lucide-react";
 
 type Config = {
@@ -21,6 +22,9 @@ type Config = {
   store_status: string;
   last_menu_sync_at: string | null;
   last_menu_sync_status: string | null;
+  authorized_at: string | null;
+  authorized_scopes: string | null;
+  auth_environment: string | null;
 };
 
 type LogRow = {
@@ -32,12 +36,21 @@ type LogRow = {
 };
 
 const WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uber-eats-webhook`;
+const OAUTH_CALLBACK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uber-eats-oauth-callback`;
 
 const UBER_AUTH_BASE = {
   sandbox: "https://sandbox-login.uber.com/oauth/v2/authorize",
   production: "https://login.uber.com/oauth/v2/authorize",
 };
-const DEFAULT_SCOPES = "eats.store eats.store.orders.read eats.store.status.write eats.order";
+
+const AVAILABLE_SCOPES = [
+  { id: "eats.store", label: "Read store details" },
+  { id: "eats.store.status.write", label: "Change store status (online / paused)" },
+  { id: "eats.store.orders.read", label: "Read store orders" },
+  { id: "eats.order", label: "Accept, deny and update orders" },
+  { id: "eats.pos_provisioning", label: "POS provisioning / menu sync" },
+];
+const DEFAULT_SCOPES = "eats.store eats.store.status.write eats.store.orders.read eats.order";
 
 export function UberEatsSettings() {
   const [config, setConfig] = useState<Config | null>(null);
@@ -50,15 +63,27 @@ export function UberEatsSettings() {
     () => (localStorage.getItem("ue_auth_env") as "sandbox" | "production") || "sandbox",
   );
   const [authClientId, setAuthClientId] = useState(() => localStorage.getItem("ue_auth_client_id") ?? "");
-  const [authRedirect, setAuthRedirect] = useState(() => localStorage.getItem("ue_auth_redirect") ?? WEBHOOK_URL);
+  const [authRedirect, setAuthRedirect] = useState(() => localStorage.getItem("ue_auth_redirect") ?? OAUTH_CALLBACK_URL);
   const [authScopes, setAuthScopes] = useState(() => localStorage.getItem("ue_auth_scopes") ?? DEFAULT_SCOPES);
   const { toast } = useToast();
 
-  const authorizeUrl = `${UBER_AUTH_BASE[authEnv]}?client_id=${encodeURIComponent(authClientId)}&redirect_uri=${encodeURIComponent(authRedirect)}&scope=${encodeURIComponent(authScopes)}&response_type=code`;
+  const selectedScopes = authScopes.split(/\s+/).filter(Boolean);
+  const toggleScope = (id: string, on: boolean) => {
+    const next = on ? [...selectedScopes, id] : selectedScopes.filter((s) => s !== id);
+    const value = Array.from(new Set(next)).join(" ");
+    setAuthScopes(value);
+    localStorage.setItem("ue_auth_scopes", value);
+  };
+
+  const authorizeUrl = `${UBER_AUTH_BASE[authEnv]}?client_id=${encodeURIComponent(authClientId)}&redirect_uri=${encodeURIComponent(authRedirect)}&scope=${encodeURIComponent(authScopes)}&response_type=code&state=${encodeURIComponent(authEnv)}`;
 
   const openAuthPopup = () => {
     if (!authClientId) {
       toast({ title: "Client ID required", description: "Paste your Uber app Client ID first.", variant: "destructive" });
+      return;
+    }
+    if (selectedScopes.length === 0) {
+      toast({ title: "Select at least one scope", description: "Step 1: choose the permissions your app needs.", variant: "destructive" });
       return;
     }
     localStorage.setItem("ue_auth_env", authEnv);
@@ -82,6 +107,19 @@ export function UberEatsSettings() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // The callback page posts back once the code has been exchanged for a token.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.source !== "uber-eats-oauth") return;
+      toast(e.data.ok
+        ? { title: "App authorized", description: "Access token stored securely." }
+        : { variant: "destructive", title: "Authorization failed", description: "Check the activity log below." });
+      load();
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   const patch = (p: Partial<Config>) => setConfig((c) => (c ? { ...c, ...p } : c));
 
@@ -200,22 +238,53 @@ export function UberEatsSettings() {
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
           <h3 className="font-semibold">App authorization</h3>
+          <Badge variant={config.authorized_at ? "default" : "outline"}>
+            {config.authorized_at ? `Authorized (${config.auth_environment ?? "sandbox"})` : "Not authorized"}
+          </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Grant this app permission to access your Uber Eats store data. Opens Uber's consent screen in a popup.
+          Step 1 pick the scopes, step 2 sign in on Uber's consent screen, steps 3–5 are automatic: Uber redirects back to
+          the callback below, the authorization code is exchanged for an access token, and every Uber Eats API call from
+          this app then uses that token.
+          {config.authorized_at && (
+            <> Last authorized {new Date(config.authorized_at).toLocaleString()}.</>
+          )}
         </p>
+
+        <div className="space-y-2">
+          <Label>Scopes</Label>
+          <div className="grid gap-2 md:grid-cols-2">
+            {AVAILABLE_SCOPES.map((s) => (
+              <label key={s.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
+                <Checkbox
+                  checked={selectedScopes.includes(s.id)}
+                  onCheckedChange={(v) => toggleScope(s.id, v === true)}
+                />
+                <span>
+                  <span className="font-mono text-xs">{s.id}</span>
+                  <span className="block text-xs text-muted-foreground">{s.label}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="ue-auth-client">Client ID</Label>
             <Input id="ue-auth-client" value={authClientId} placeholder="lVdvEDRJyq6x8LoCfSwd…" onChange={(e) => setAuthClientId(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ue-auth-redirect">Redirect URI</Label>
+            <Label htmlFor="ue-auth-redirect">Redirect URI (add this in the Uber dashboard)</Label>
             <Input id="ue-auth-redirect" value={authRedirect} onChange={(e) => setAuthRedirect(e.target.value)} />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="ue-auth-scopes">Scopes (space separated)</Label>
-            <Input id="ue-auth-scopes" value={authScopes} onChange={(e) => setAuthScopes(e.target.value)} />
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(OAUTH_CALLBACK_URL); toast({ title: "Redirect URI copied" }); }}>
+                <Copy className="h-4 w-4 mr-2" />Copy callback URL
+              </Button>
+              {authRedirect !== OAUTH_CALLBACK_URL && (
+                <Button variant="ghost" size="sm" onClick={() => setAuthRedirect(OAUTH_CALLBACK_URL)}>Use default</Button>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center justify-between">
