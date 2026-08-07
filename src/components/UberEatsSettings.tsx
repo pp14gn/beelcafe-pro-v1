@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical, ShieldCheck, ExternalLink } from "lucide-react";
+import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical, ShieldCheck, KeyRound } from "lucide-react";
 
 type Config = {
   id: string;
@@ -36,11 +36,10 @@ type LogRow = {
 };
 
 const WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uber-eats-webhook`;
-const OAUTH_CALLBACK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uber-eats-oauth-callback`;
 
-const UBER_AUTH_BASE = {
-  sandbox: "https://sandbox-login.uber.com/oauth/v2/authorize",
-  production: "https://login.uber.com/oauth/v2/authorize",
+const UBER_TOKEN_URL = {
+  sandbox: "https://sandbox-login.uber.com/oauth/v2/token",
+  production: "https://login.uber.com/oauth/v2/token",
 };
 
 const AVAILABLE_SCOPES = [
@@ -62,8 +61,6 @@ export function UberEatsSettings() {
   const [authEnv, setAuthEnv] = useState<"sandbox" | "production">(
     () => (localStorage.getItem("ue_auth_env") as "sandbox" | "production") || "production",
   );
-  const [authClientId, setAuthClientId] = useState(() => localStorage.getItem("ue_auth_client_id") ?? "");
-  const [authRedirect, setAuthRedirect] = useState(() => localStorage.getItem("ue_auth_redirect") ?? OAUTH_CALLBACK_URL);
   const [authScopes, setAuthScopes] = useState(() => localStorage.getItem("ue_auth_scopes") ?? DEFAULT_SCOPES);
   const { toast } = useToast();
 
@@ -75,24 +72,26 @@ export function UberEatsSettings() {
     localStorage.setItem("ue_auth_scopes", value);
   };
 
-  const authorizeUrl = `${UBER_AUTH_BASE[authEnv]}?client_id=${encodeURIComponent(authClientId)}&redirect_uri=${encodeURIComponent(authRedirect)}&scope=${encodeURIComponent(authScopes)}&response_type=code&state=${encodeURIComponent(authEnv)}`;
-
-  const openAuthPopup = () => {
-    if (!authClientId) {
-      toast({ title: "Client ID required", description: "Paste your Uber app Client ID first.", variant: "destructive" });
-      return;
-    }
+  const generateToken = async () => {
     if (selectedScopes.length === 0) {
       toast({ title: "Select at least one scope", description: "Step 1: choose the permissions your app needs.", variant: "destructive" });
       return;
     }
     localStorage.setItem("ue_auth_env", authEnv);
-    localStorage.setItem("ue_auth_client_id", authClientId);
-    localStorage.setItem("ue_auth_redirect", authRedirect);
     localStorage.setItem("ue_auth_scopes", authScopes);
-    const popup = window.open(authorizeUrl, "uber-eats-authorize", "width=520,height=720,menubar=no,toolbar=no");
-    if (!popup) {
-      toast({ title: "Popup blocked", description: "Allow popups for this site and try again.", variant: "destructive" });
+    setBusy("Generate token");
+    try {
+      const { data, error } = await supabase.functions.invoke("uber-eats-generate-token", {
+        body: { environment: authEnv, scope: authScopes },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Access token generated", description: `Environment: ${data.environment}` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Token request failed", description: e.message });
+    } finally {
+      setBusy(null);
+      load();
     }
   };
 
@@ -107,19 +106,6 @@ export function UberEatsSettings() {
   };
 
   useEffect(() => { load(); }, []);
-
-  // The callback page posts back once the code has been exchanged for a token.
-  useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      if (e.data?.source !== "uber-eats-oauth") return;
-      toast(e.data.ok
-        ? { title: "App authorized", description: "Access token stored securely." }
-        : { variant: "destructive", title: "Authorization failed", description: "Check the activity log below." });
-      load();
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
 
   const patch = (p: Partial<Config>) => setConfig((c) => (c ? { ...c, ...p } : c));
 
@@ -237,17 +223,18 @@ export function UberEatsSettings() {
       <Card className="p-6 space-y-4">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">App authorization</h3>
+          <h3 className="font-semibold">App authorization (client credentials)</h3>
           <Badge variant={config.authorized_at ? "default" : "outline"}>
             {config.authorized_at ? `Authorized (${config.auth_environment ?? "sandbox"})` : "Not authorized"}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Step 1 pick the scopes, step 2 sign in on Uber's consent screen, steps 3–5 are automatic: Uber redirects back to
-          the callback below, the authorization code is exchanged for an access token, and every Uber Eats API call from
-          this app then uses that token.
+          Step 1: pick the scopes below. Step 2: generate the access token — the server posts your Client ID and Secret to
+          Uber's token endpoint with <span className="font-mono text-xs">grant_type=client_credentials</span>. Step 3: every
+          Uber Eats API call from this app then sends that token as a Bearer header, and it is renewed automatically when it
+          expires.
           {config.authorized_at && (
-            <> Last authorized {new Date(config.authorized_at).toLocaleString()}.</>
+            <> Last generated {new Date(config.authorized_at).toLocaleString()}.</>
           )}
         </p>
 
@@ -269,42 +256,27 @@ export function UberEatsSettings() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="ue-auth-client">Client ID</Label>
-            <Input id="ue-auth-client" value={authClientId} placeholder="lVdvEDRJyq6x8LoCfSwd…" onChange={(e) => setAuthClientId(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="ue-auth-redirect">Redirect URI (add this in the Uber dashboard)</Label>
-            <Input id="ue-auth-redirect" value={authRedirect} onChange={(e) => setAuthRedirect(e.target.value)} />
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(OAUTH_CALLBACK_URL); toast({ title: "Redirect URI copied" }); }}>
-                <Copy className="h-4 w-4 mr-2" />Copy callback URL
-              </Button>
-              {authRedirect !== OAUTH_CALLBACK_URL && (
-                <Button variant="ghost" size="sm" onClick={() => setAuthRedirect(OAUTH_CALLBACK_URL)}>Use default</Button>
-              )}
-            </div>
-          </div>
-        </div>
         <div className="flex items-center justify-between">
           <div>
             <Label>Environment</Label>
             <p className="text-xs text-muted-foreground">
-              {authEnv === "sandbox" ? "sandbox-login.uber.com" : "login.uber.com"} — if you get "Invalid client", switch this toggle: the Client ID must belong to the same environment.
+              {UBER_TOKEN_URL[authEnv]} — if you get an environment mismatch error, switch this toggle: your app credentials
+              must belong to the same environment.
             </p>
           </div>
           <Switch checked={authEnv === "production"} onCheckedChange={(v) => setAuthEnv(v ? "production" : "sandbox")} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={openAuthPopup}>
-            <ExternalLink className="h-4 w-4 mr-2" />Authorize app access
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(authorizeUrl); toast({ title: "Authorization URL copied" }); }}>
-            <Copy className="h-4 w-4 mr-2" />Copy URL
+          <Button onClick={generateToken} disabled={!!busy}>
+            {busy === "Generate token"
+              ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              : <KeyRound className="h-4 w-4 mr-2" />}
+            Generate access token
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground break-all">{authorizeUrl}</p>
+        <p className="text-xs text-muted-foreground break-all">
+          Scopes: {selectedScopes.join(" ") || "none selected"}
+        </p>
       </Card>
 
       <Card className="p-6 space-y-4">
