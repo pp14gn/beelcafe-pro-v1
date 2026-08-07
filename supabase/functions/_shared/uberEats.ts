@@ -199,18 +199,10 @@ export async function getUberToken(): Promise<string> {
     if (renewed) return renewed;
   }
 
-  const res = await fetch(tokenUrl((stored?.environment ?? "production") as UberEnv), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "client_credentials",
-      scope: UBER_SCOPES,
-    }),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`Uber auth failed (${res.status}): ${JSON.stringify(body)}`);
+  const body = await requestClientCredentialsToken(
+    UBER_SCOPES,
+    (stored?.environment ?? "production") as UberEnv,
+  );
   cachedToken = {
     token: body.access_token,
     expiresAt: Date.now() + (Number(body.expires_in ?? 2592000) * 1000),
