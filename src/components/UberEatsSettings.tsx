@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical, ShieldCheck, ExternalLink } from "lucide-react";
+import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical, ShieldCheck, KeyRound } from "lucide-react";
 
 type Config = {
   id: string;
@@ -36,11 +36,10 @@ type LogRow = {
 };
 
 const WEBHOOK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uber-eats-webhook`;
-const OAUTH_CALLBACK_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/uber-eats-oauth-callback`;
 
-const UBER_AUTH_BASE = {
-  sandbox: "https://sandbox-login.uber.com/oauth/v2/authorize",
-  production: "https://login.uber.com/oauth/v2/authorize",
+const UBER_TOKEN_URL = {
+  sandbox: "https://sandbox-login.uber.com/oauth/v2/token",
+  production: "https://login.uber.com/oauth/v2/token",
 };
 
 const AVAILABLE_SCOPES = [
@@ -62,8 +61,6 @@ export function UberEatsSettings() {
   const [authEnv, setAuthEnv] = useState<"sandbox" | "production">(
     () => (localStorage.getItem("ue_auth_env") as "sandbox" | "production") || "production",
   );
-  const [authClientId, setAuthClientId] = useState(() => localStorage.getItem("ue_auth_client_id") ?? "");
-  const [authRedirect, setAuthRedirect] = useState(() => localStorage.getItem("ue_auth_redirect") ?? OAUTH_CALLBACK_URL);
   const [authScopes, setAuthScopes] = useState(() => localStorage.getItem("ue_auth_scopes") ?? DEFAULT_SCOPES);
   const { toast } = useToast();
 
@@ -75,24 +72,26 @@ export function UberEatsSettings() {
     localStorage.setItem("ue_auth_scopes", value);
   };
 
-  const authorizeUrl = `${UBER_AUTH_BASE[authEnv]}?client_id=${encodeURIComponent(authClientId)}&redirect_uri=${encodeURIComponent(authRedirect)}&scope=${encodeURIComponent(authScopes)}&response_type=code&state=${encodeURIComponent(authEnv)}`;
-
-  const openAuthPopup = () => {
-    if (!authClientId) {
-      toast({ title: "Client ID required", description: "Paste your Uber app Client ID first.", variant: "destructive" });
-      return;
-    }
+  const generateToken = async () => {
     if (selectedScopes.length === 0) {
       toast({ title: "Select at least one scope", description: "Step 1: choose the permissions your app needs.", variant: "destructive" });
       return;
     }
     localStorage.setItem("ue_auth_env", authEnv);
-    localStorage.setItem("ue_auth_client_id", authClientId);
-    localStorage.setItem("ue_auth_redirect", authRedirect);
     localStorage.setItem("ue_auth_scopes", authScopes);
-    const popup = window.open(authorizeUrl, "uber-eats-authorize", "width=520,height=720,menubar=no,toolbar=no");
-    if (!popup) {
-      toast({ title: "Popup blocked", description: "Allow popups for this site and try again.", variant: "destructive" });
+    setBusy("Generate token");
+    try {
+      const { data, error } = await supabase.functions.invoke("uber-eats-generate-token", {
+        body: { environment: authEnv, scope: authScopes },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Access token generated", description: `Environment: ${data.environment}` });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Token request failed", description: e.message });
+    } finally {
+      setBusy(null);
+      load();
     }
   };
 
@@ -107,19 +106,6 @@ export function UberEatsSettings() {
   };
 
   useEffect(() => { load(); }, []);
-
-  // The callback page posts back once the code has been exchanged for a token.
-  useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      if (e.data?.source !== "uber-eats-oauth") return;
-      toast(e.data.ok
-        ? { title: "App authorized", description: "Access token stored securely." }
-        : { variant: "destructive", title: "Authorization failed", description: "Check the activity log below." });
-      load();
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
 
   const patch = (p: Partial<Config>) => setConfig((c) => (c ? { ...c, ...p } : c));
 
