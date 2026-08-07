@@ -59,6 +59,27 @@ export async function requireUser(req: Request): Promise<string> {
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+/** Step 2: client-credentials grant — generate an access token from the app credentials. */
+export async function requestClientCredentialsToken(scope: string, env: UberEnv) {
+  const clientId = Deno.env.get("UBER_EATS_CLIENT_ID");
+  const clientSecret = Deno.env.get("UBER_EATS_CLIENT_SECRET");
+  if (!clientId || !clientSecret) throw new Error("Uber Eats credentials are not configured.");
+
+  const res = await fetch(tokenUrl(env), {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "client_credentials",
+      scope: scope || UBER_SCOPES,
+    }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`Token request failed (${res.status}): ${JSON.stringify(body)}`);
+  return body as { access_token: string; token_type?: string; scope?: string; expires_in?: number };
+}
+
 /** Exchange an authorization code (step 4) for user access + refresh tokens. */
 export async function exchangeAuthorizationCode(
   code: string,
@@ -122,28 +143,17 @@ export async function storeOAuthTokens(
   cachedToken = { token: tokens.access_token, expiresAt: Date.parse(expiresAt) };
 }
 
-async function refreshStoredToken(row: any): Promise<string | null> {
-  if (!row?.refresh_token) return null;
-  const clientId = Deno.env.get("UBER_EATS_CLIENT_ID");
-  const clientSecret = Deno.env.get("UBER_EATS_CLIENT_SECRET");
-  if (!clientId || !clientSecret) return null;
-  const res = await fetch(tokenUrl((row.environment ?? "sandbox") as UberEnv), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "refresh_token",
-      refresh_token: row.refresh_token,
-    }),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || !body.access_token) {
-    await log("oauth_refresh", false, `Refresh failed (${res.status})`, body);
+/** Re-mint an expired token with the same scopes/environment via client credentials. */
+async function renewStoredToken(row: any): Promise<string | null> {
+  const env = (row?.environment ?? "production") as UberEnv;
+  try {
+    const tokens = await requestClientCredentialsToken(row?.scope ?? UBER_SCOPES, env);
+    await storeOAuthTokens(tokens, env);
+    return tokens.access_token;
+  } catch (e: any) {
+    await log("oauth_renew", false, e.message);
     return null;
   }
-  await storeOAuthTokens({ ...body, refresh_token: body.refresh_token ?? row.refresh_token }, (row.environment ?? "sandbox") as UberEnv);
-  return body.access_token as string;
 }
 
 /** Returns the user-authorized token when available, otherwise a client-credentials token. */
@@ -155,7 +165,7 @@ export async function getUberToken(): Promise<string> {
   }
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.token;
 
-  // Prefer the token obtained through the app-authorization (OAuth) flow.
+  // Prefer the stored token generated in Settings → Uber Eats.
   const { data: stored } = await admin()
     .from("uber_eats_oauth")
     .select("*")
@@ -168,11 +178,11 @@ export async function getUberToken(): Promise<string> {
       cachedToken = { token: stored.access_token, expiresAt };
       return stored.access_token;
     }
-    const refreshed = await refreshStoredToken(stored);
-    if (refreshed) return refreshed;
+    const renewed = await renewStoredToken(stored);
+    if (renewed) return renewed;
   }
 
-  const res = await fetch(UBER_AUTH, {
+  const res = await fetch(tokenUrl((stored?.environment ?? "production") as UberEnv), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
