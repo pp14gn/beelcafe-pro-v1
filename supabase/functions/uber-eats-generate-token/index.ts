@@ -22,7 +22,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const env: UberEnv = body?.environment === "sandbox" ? "sandbox" : "production";
+    const env: UberEnv = body?.environment === "production" ? "production" : "sandbox";
     const scope = typeof body?.scope === "string" && body.scope.trim() ? body.scope.trim() : UBER_SCOPES;
 
     const tokens = await requestClientCredentialsToken(scope, env);
