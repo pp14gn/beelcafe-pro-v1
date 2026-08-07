@@ -65,15 +65,22 @@ export async function requestClientCredentialsToken(scope: string, env: UberEnv)
   const clientSecret = Deno.env.get("UBER_EATS_CLIENT_SECRET");
   if (!clientId || !clientSecret) throw new Error("Uber Eats credentials are not configured.");
 
-  // Uber rejects a token request with "the current application environment is mismatched
-  // with the OAuth server runtime environment" when the app was registered against a
-  // different OAuth host. Try the selected host first, then the other known hosts.
-  const candidates = Array.from(
-    new Set([tokenUrl(env), UBER_AUTH, tokenUrl("production"), tokenUrl("sandbox")]),
+  const url = tokenUrl(env);
+
+  // Some Uber apps are only granted a subset of the Eats scopes; on invalid_scope
+  // retry with progressively smaller scope sets.
+  const requested = (scope || UBER_SCOPES).trim().split(/\s+/);
+  const attempts = Array.from(
+    new Set([
+      requested.join(" "),
+      requested.filter((s) => s !== "eats.pos_provisioning").join(" "),
+      requested.filter((s) => s === "eats.store" || s === "eats.order").join(" "),
+      "eats.store",
+    ].filter(Boolean)),
   );
 
   let lastError = "";
-  for (const url of candidates) {
+  for (const attempt of attempts) {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -81,18 +88,15 @@ export async function requestClientCredentialsToken(scope: string, env: UberEnv)
         client_id: clientId,
         client_secret: clientSecret,
         grant_type: "client_credentials",
-        scope: scope || UBER_SCOPES,
+        scope: attempt,
       }),
     });
     const body = await res.json().catch(() => ({}));
     if (res.ok) {
       return body as { access_token: string; token_type?: string; scope?: string; expires_in?: number };
     }
-    lastError = `Token request failed at ${url} (${res.status}): ${JSON.stringify(body)}`;
-    const err = String((body as any)?.error ?? "");
-    const desc = String((body as any)?.error_description ?? "");
-    const retryable = err === "unauthorized_client" || desc.includes("environment");
-    if (!retryable) break;
+    lastError = `Token request failed at ${url} (${res.status}) with scopes "${attempt}": ${JSON.stringify(body)}`;
+    if (String((body as any)?.error ?? "") !== "invalid_scope") break;
   }
   throw new Error(lastError || "Token request failed");
 }
