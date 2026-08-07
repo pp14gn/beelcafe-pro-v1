@@ -65,19 +65,36 @@ export async function requestClientCredentialsToken(scope: string, env: UberEnv)
   const clientSecret = Deno.env.get("UBER_EATS_CLIENT_SECRET");
   if (!clientId || !clientSecret) throw new Error("Uber Eats credentials are not configured.");
 
-  const res = await fetch(tokenUrl(env), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: "client_credentials",
-      scope: scope || UBER_SCOPES,
-    }),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`Token request failed (${res.status}): ${JSON.stringify(body)}`);
-  return body as { access_token: string; token_type?: string; scope?: string; expires_in?: number };
+  // Uber rejects a token request with "the current application environment is mismatched
+  // with the OAuth server runtime environment" when the app was registered against a
+  // different OAuth host. Try the selected host first, then the other known hosts.
+  const candidates = Array.from(
+    new Set([tokenUrl(env), UBER_AUTH, tokenUrl("production"), tokenUrl("sandbox")]),
+  );
+
+  let lastError = "";
+  for (const url of candidates) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: "client_credentials",
+        scope: scope || UBER_SCOPES,
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) {
+      return body as { access_token: string; token_type?: string; scope?: string; expires_in?: number };
+    }
+    lastError = `Token request failed at ${url} (${res.status}): ${JSON.stringify(body)}`;
+    const err = String((body as any)?.error ?? "");
+    const desc = String((body as any)?.error_description ?? "");
+    const retryable = err === "unauthorized_client" || desc.includes("environment");
+    if (!retryable) break;
+  }
+  throw new Error(lastError || "Token request failed");
 }
 
 /** Exchange an authorization code (step 4) for user access + refresh tokens. */
