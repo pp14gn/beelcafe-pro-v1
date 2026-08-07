@@ -223,17 +223,18 @@ export function UberEatsSettings() {
       <Card className="p-6 space-y-4">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">App authorization</h3>
+          <h3 className="font-semibold">App authorization (client credentials)</h3>
           <Badge variant={config.authorized_at ? "default" : "outline"}>
             {config.authorized_at ? `Authorized (${config.auth_environment ?? "sandbox"})` : "Not authorized"}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Step 1 pick the scopes, step 2 sign in on Uber's consent screen, steps 3–5 are automatic: Uber redirects back to
-          the callback below, the authorization code is exchanged for an access token, and every Uber Eats API call from
-          this app then uses that token.
+          Step 1: pick the scopes below. Step 2: generate the access token — the server posts your Client ID and Secret to
+          Uber's token endpoint with <span className="font-mono text-xs">grant_type=client_credentials</span>. Step 3: every
+          Uber Eats API call from this app then sends that token as a Bearer header, and it is renewed automatically when it
+          expires.
           {config.authorized_at && (
-            <> Last authorized {new Date(config.authorized_at).toLocaleString()}.</>
+            <> Last generated {new Date(config.authorized_at).toLocaleString()}.</>
           )}
         </p>
 
@@ -255,42 +256,27 @@ export function UberEatsSettings() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="ue-auth-client">Client ID</Label>
-            <Input id="ue-auth-client" value={authClientId} placeholder="lVdvEDRJyq6x8LoCfSwd…" onChange={(e) => setAuthClientId(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="ue-auth-redirect">Redirect URI (add this in the Uber dashboard)</Label>
-            <Input id="ue-auth-redirect" value={authRedirect} onChange={(e) => setAuthRedirect(e.target.value)} />
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(OAUTH_CALLBACK_URL); toast({ title: "Redirect URI copied" }); }}>
-                <Copy className="h-4 w-4 mr-2" />Copy callback URL
-              </Button>
-              {authRedirect !== OAUTH_CALLBACK_URL && (
-                <Button variant="ghost" size="sm" onClick={() => setAuthRedirect(OAUTH_CALLBACK_URL)}>Use default</Button>
-              )}
-            </div>
-          </div>
-        </div>
         <div className="flex items-center justify-between">
           <div>
             <Label>Environment</Label>
             <p className="text-xs text-muted-foreground">
-              {authEnv === "sandbox" ? "sandbox-login.uber.com" : "login.uber.com"} — if you get "Invalid client", switch this toggle: the Client ID must belong to the same environment.
+              {UBER_TOKEN_URL[authEnv]} — if you get an environment mismatch error, switch this toggle: your app credentials
+              must belong to the same environment.
             </p>
           </div>
           <Switch checked={authEnv === "production"} onCheckedChange={(v) => setAuthEnv(v ? "production" : "sandbox")} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={openAuthPopup}>
-            <ExternalLink className="h-4 w-4 mr-2" />Authorize app access
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(authorizeUrl); toast({ title: "Authorization URL copied" }); }}>
-            <Copy className="h-4 w-4 mr-2" />Copy URL
+          <Button onClick={generateToken} disabled={!!busy}>
+            {busy === "Generate token"
+              ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              : <KeyRound className="h-4 w-4 mr-2" />}
+            Generate access token
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground break-all">{authorizeUrl}</p>
+        <p className="text-xs text-muted-foreground break-all">
+          Scopes: {selectedScopes.join(" ") || "none selected"}
+        </p>
       </Card>
 
       <Card className="p-6 space-y-4">
