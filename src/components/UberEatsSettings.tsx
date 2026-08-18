@@ -96,6 +96,20 @@ export function UberEatsSettings() {
     }
   };
 
+  const testToken = async () => {
+    setBusy("Test token");
+    try {
+      const { data, error } = await supabase.functions.invoke("uber-eats-test-token", { body: {} });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setTokenTest(data);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Token test failed", description: e.message });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const load = async () => {
     const [{ data: cfg }, { data: logRows }] = await Promise.all([
       supabase.from("uber_eats_config").select("*").limit(1).maybeSingle(),
@@ -274,7 +288,17 @@ export function UberEatsSettings() {
               : <KeyRound className="h-4 w-4 mr-2" />}
             Generate access token
           </Button>
+          <Button variant="outline" onClick={testToken} disabled={!!busy}>
+            {busy === "Test token"
+              ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              : <Stethoscope className="h-4 w-4 mr-2" />}
+            Test access token
+          </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          The test calls the Uber Eats sandbox API (<span className="font-mono">sandbox-api.uber.com</span>) with the stored
+          token as a Bearer header, following Uber's sandbox guide, and reports each endpoint's response.
+        </p>
         <p className="text-xs text-muted-foreground break-all">
           Scopes: {selectedScopes.join(" ") || "none selected"}
         </p>
