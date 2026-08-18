@@ -1199,45 +1199,63 @@ export type Database = {
       }
       uber_eats_config: {
         Row: {
+          activated_at: string | null
+          activation_status: string | null
           auth_environment: string | null
           authorized_at: string | null
           authorized_scopes: string | null
           auto_accept_orders: boolean
           created_at: string
           id: string
+          integrator_brand_id: string | null
+          integrator_store_id: string | null
           is_enabled: boolean
           last_menu_sync_at: string | null
           last_menu_sync_status: string | null
+          order_manager: string | null
+          pos_integration_enabled: boolean
           store_id: string | null
           store_name: string | null
           store_status: string
           updated_at: string
         }
         Insert: {
+          activated_at?: string | null
+          activation_status?: string | null
           auth_environment?: string | null
           authorized_at?: string | null
           authorized_scopes?: string | null
           auto_accept_orders?: boolean
           created_at?: string
           id?: string
+          integrator_brand_id?: string | null
+          integrator_store_id?: string | null
           is_enabled?: boolean
           last_menu_sync_at?: string | null
           last_menu_sync_status?: string | null
+          order_manager?: string | null
+          pos_integration_enabled?: boolean
           store_id?: string | null
           store_name?: string | null
           store_status?: string
           updated_at?: string
         }
         Update: {
+          activated_at?: string | null
+          activation_status?: string | null
           auth_environment?: string | null
           authorized_at?: string | null
           authorized_scopes?: string | null
           auto_accept_orders?: boolean
           created_at?: string
           id?: string
+          integrator_brand_id?: string | null
+          integrator_store_id?: string | null
           is_enabled?: boolean
           last_menu_sync_at?: string | null
           last_menu_sync_status?: string | null
+          order_manager?: string | null
+          pos_integration_enabled?: boolean
           store_id?: string | null
           store_name?: string | null
           store_status?: string
