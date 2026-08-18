@@ -339,6 +339,52 @@ export function UberEatsSettings() {
         </div>
       </Card>
 
+      <Dialog open={!!tokenTest} onOpenChange={(o) => !o && setTokenTest(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Access token test</DialogTitle>
+            <DialogDescription>{tokenTest?.summary}</DialogDescription>
+          </DialogHeader>
+          {tokenTest && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant={tokenTest.auth_ok ? "default" : "destructive"}>
+                  {tokenTest.auth_ok ? "Token accepted" : "Token rejected"}
+                </Badge>
+                <Badge variant="secondary">{tokenTest.environment}</Badge>
+                <Badge variant={tokenTest.expired ? "destructive" : "outline"}>
+                  {tokenTest.expired ? "Expired" : "Valid"}
+                  {tokenTest.expires_at && ` · ${new Date(tokenTest.expires_at).toLocaleString()}`}
+                </Badge>
+                {!tokenTest.store_id && <Badge variant="outline">No store ID set</Badge>}
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>API base: <span className="font-mono">{tokenTest.api_base}</span></div>
+                <div>Token: <span className="font-mono">{tokenTest.token_preview}</span> ({tokenTest.token_type})</div>
+                <div>Scopes: <span className="font-mono">{tokenTest.scope ?? "unknown"}</span></div>
+              </div>
+              <ScrollArea className="h-[300px] rounded-md border p-3">
+                <div className="space-y-2">
+                  {tokenTest.checks?.map((c: any, i: number) => (
+                    <div key={i} className="rounded-md border p-2 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono">{c.path}</span>
+                        <span className={c.ok ? "text-green-600" : "text-destructive"}>
+                          HTTP {c.status} · {c.ms}ms
+                        </span>
+                      </div>
+                      <pre className="mt-1 whitespace-pre-wrap break-all text-muted-foreground">
+                        {JSON.stringify(c.body, null, 2)?.slice(0, 800)}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
