@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical, ShieldCheck, KeyRound } from "lucide-react";
+import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical, ShieldCheck, KeyRound, Stethoscope } from "lucide-react";
 
 type Config = {
   id: string;
@@ -58,6 +58,7 @@ export function UberEatsSettings() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [preview, setPreview] = useState<any | null>(null);
+  const [tokenTest, setTokenTest] = useState<any | null>(null);
   const [authEnv, setAuthEnv] = useState<"sandbox" | "production">(
     () => (localStorage.getItem("ue_auth_env") as "sandbox" | "production") || "production",
   );
