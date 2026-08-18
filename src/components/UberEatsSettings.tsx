@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical, ShieldCheck, KeyRound } from "lucide-react";
+import { Loader2, RefreshCw, Store, Copy, CheckCircle2, XCircle, FlaskConical, ShieldCheck, KeyRound, Stethoscope } from "lucide-react";
 
 type Config = {
   id: string;
@@ -58,6 +58,7 @@ export function UberEatsSettings() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [preview, setPreview] = useState<any | null>(null);
+  const [tokenTest, setTokenTest] = useState<any | null>(null);
   const [authEnv, setAuthEnv] = useState<"sandbox" | "production">(
     () => (localStorage.getItem("ue_auth_env") as "sandbox" | "production") || "production",
   );
@@ -92,6 +93,20 @@ export function UberEatsSettings() {
     } finally {
       setBusy(null);
       load();
+    }
+  };
+
+  const testToken = async () => {
+    setBusy("Test token");
+    try {
+      const { data, error } = await supabase.functions.invoke("uber-eats-test-token", { body: {} });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setTokenTest(data);
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Token test failed", description: e.message });
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -273,7 +288,17 @@ export function UberEatsSettings() {
               : <KeyRound className="h-4 w-4 mr-2" />}
             Generate access token
           </Button>
+          <Button variant="outline" onClick={testToken} disabled={!!busy}>
+            {busy === "Test token"
+              ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              : <Stethoscope className="h-4 w-4 mr-2" />}
+            Test access token
+          </Button>
         </div>
+        <p className="text-xs text-muted-foreground">
+          The test calls the Uber Eats sandbox API (<span className="font-mono">sandbox-api.uber.com</span>) with the stored
+          token as a Bearer header, following Uber's sandbox guide, and reports each endpoint's response.
+        </p>
         <p className="text-xs text-muted-foreground break-all">
           Scopes: {selectedScopes.join(" ") || "none selected"}
         </p>
@@ -313,6 +338,52 @@ export function UberEatsSettings() {
           </Button>
         </div>
       </Card>
+
+      <Dialog open={!!tokenTest} onOpenChange={(o) => !o && setTokenTest(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Access token test</DialogTitle>
+            <DialogDescription>{tokenTest?.summary}</DialogDescription>
+          </DialogHeader>
+          {tokenTest && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant={tokenTest.auth_ok ? "default" : "destructive"}>
+                  {tokenTest.auth_ok ? "Token accepted" : "Token rejected"}
+                </Badge>
+                <Badge variant="secondary">{tokenTest.environment}</Badge>
+                <Badge variant={tokenTest.expired ? "destructive" : "outline"}>
+                  {tokenTest.expired ? "Expired" : "Valid"}
+                  {tokenTest.expires_at && ` · ${new Date(tokenTest.expires_at).toLocaleString()}`}
+                </Badge>
+                {!tokenTest.store_id && <Badge variant="outline">No store ID set</Badge>}
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>API base: <span className="font-mono">{tokenTest.api_base}</span></div>
+                <div>Token: <span className="font-mono">{tokenTest.token_preview}</span> ({tokenTest.token_type})</div>
+                <div>Scopes: <span className="font-mono">{tokenTest.scope ?? "unknown"}</span></div>
+              </div>
+              <ScrollArea className="h-[300px] rounded-md border p-3">
+                <div className="space-y-2">
+                  {tokenTest.checks?.map((c: any, i: number) => (
+                    <div key={i} className="rounded-md border p-2 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono">{c.path}</span>
+                        <span className={c.ok ? "text-green-600" : "text-destructive"}>
+                          HTTP {c.status} · {c.ms}ms
+                        </span>
+                      </div>
+                      <pre className="mt-1 whitespace-pre-wrap break-all text-muted-foreground">
+                        {JSON.stringify(c.body, null, 2)?.slice(0, 800)}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
         <DialogContent className="max-w-3xl">
