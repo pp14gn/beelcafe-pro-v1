@@ -62,9 +62,7 @@ serve(async (req) => {
         integrator_store_id: integratorStoreId,
         integration_enabled: body.integration_enabled !== false,
         order_manager: orderManager,
-challenge: undefined,
       };
-      delete (payload as any).challenge;
       const brandId = body.integrator_brand_id ?? config?.integrator_brand_id;
       if (brandId) payload.integrator_brand_id = String(brandId);
       if (body.store_configuration_data) payload.store_configuration_data = body.store_configuration_data;
