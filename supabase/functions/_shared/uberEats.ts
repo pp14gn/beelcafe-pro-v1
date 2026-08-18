@@ -7,6 +7,25 @@ export const corsHeaders = {
 };
 
 export const UBER_API = "https://api.uber.com";
+export const UBER_API_BASE = {
+  sandbox: "https://sandbox-api.uber.com",
+  production: "https://api.uber.com",
+} as const;
+
+/** Resolve the API host that matches the environment of the stored token. */
+export async function getApiBase(): Promise<string> {
+  try {
+    const { data } = await admin()
+      .from("uber_eats_oauth")
+      .select("environment")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return data?.environment === "production" ? UBER_API_BASE.production : UBER_API_BASE.sandbox;
+  } catch {
+    return UBER_API_BASE.production;
+  }
+}
 const UBER_AUTH = "https://auth.uber.com/oauth/v2/token";
 
 export const UBER_LOGIN_BASE = {
@@ -216,7 +235,8 @@ export async function getUberToken(): Promise<string> {
 
 export async function uberFetch(path: string, init: RequestInit = {}) {
   const token = await getUberToken();
-  const res = await fetch(`${UBER_API}${path}`, {
+  const base = await getApiBase();
+  const res = await fetch(`${base}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
